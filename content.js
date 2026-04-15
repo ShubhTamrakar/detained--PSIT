@@ -19,8 +19,8 @@
   const K_HISTORY = "psit_history";
   const K_STREAK = "psit_streak";
   const K_CUSTOM_LPD = "psit_custom_lectures"; // Object: { "ISO-DATE": NumberOfLectures }
+  const K_LAST_TOTAL = "psit_last_total_lectures"; // last seen totalLectures — for semester reset detection
 
-  const VERSION_JSON_URL = "https://raw.githubusercontent.com/ShubhTamrakar/detained--PSIT/main/docs/version.json";
   const K_UPDATE_DISMISSED = "detained_update_dismissed_v";
 
 
@@ -64,29 +64,23 @@
   }
 
   function checkForUpdate(popup) {
+    if (popup.querySelector("#detained-update-banner")) return;
     const currentVersion = chrome.runtime.getManifest().version;
-    const cached = sessionStorage.getItem(K_UPDATE_DISMISSED + "__checked");
-    if (cached) {
+    const url = "https://whydetained.pages.dev/version.json";
+    const xhr = new XMLHttpRequest();
+    xhr.open("GET", url, true);
+    xhr.onload = () => {
       try {
-        const { version, releaseUrl } = JSON.parse(cached);
-        if (isNewerVersion(version, currentVersion) &&
-            !sessionStorage.getItem(K_UPDATE_DISMISSED + version)) {
-          showUpdateBanner(popup, version, releaseUrl);
-        }
-      } catch (_) {}
-      return;
-    }
-    fetch(VERSION_JSON_URL)
-      .then(r => r.json())
-      .then(data => {
-        sessionStorage.setItem(K_UPDATE_DISMISSED + "__checked",
-          JSON.stringify({ version: data.version, releaseUrl: data.releaseUrl }));
+        const data = JSON.parse(xhr.responseText);
+        console.log("[Detained?] Remote version:", data.version, "| Installed:", currentVersion);
         if (isNewerVersion(data.version, currentVersion) &&
             !sessionStorage.getItem(K_UPDATE_DISMISSED + data.version)) {
           showUpdateBanner(popup, data.version, data.releaseUrl);
         }
-      })
-      .catch(() => {});
+      } catch (e) { console.warn("[Detained?] Update parse failed:", e); }
+    };
+    xhr.onerror = () => console.warn("[Detained?] Update check failed");
+    xhr.send();
   }
 
   // ═══════════════════════════════════════════════════════════════════════════════
@@ -161,8 +155,59 @@
     return history;
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════════
-  // SECTION 2 — localStorage HELPERS
+  // Counts consecutive days (most-recent first) where student had zero absences
+  function getStreakFromTable() {
+    const table = document.getElementById("data-table-buttons");
+    if (!table) return 0;
+    const rows = Array.from(table.querySelectorAll("tbody tr"));
+
+    // Find the most recent row that has an absence
+    let lastAbsentDate = null;
+    for (let i = rows.length - 1; i >= 0; i--) {
+      const cells = rows[i].querySelectorAll("td");
+      if (cells.length < 11) continue;
+      for (let j = 2; j <= 10; j++) {
+        const text = cells[j].textContent.trim().toUpperCase();
+        const html = cells[j].innerHTML.toUpperCase();
+        if (text.includes("ABS") || html.includes("ABS")) {
+          // Parse date from cells[1], format: YYYY-MM-DD or DD-MM-YYYY
+          const raw = cells[1].textContent.trim();
+          const parts = raw.split(/[-\/]/);
+          if (parts.length === 3) {
+            // Detect YYYY-MM-DD vs DD-MM-YYYY
+            const d = parts[0].length === 4
+              ? new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
+              : new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+            if (!isNaN(d)) lastAbsentDate = d;
+          }
+          break;
+        }
+      }
+      if (lastAbsentDate) break;
+    }
+
+    // Streak = calendar days from (lastAbsentDate + 1) to today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (!lastAbsentDate) {
+      // No absence ever — streak is total days since first entry
+      const firstRow = rows.find(r => r.querySelectorAll("td").length >= 2);
+      if (!firstRow) return 0;
+      const raw = firstRow.querySelectorAll("td")[1].textContent.trim();
+      const parts = raw.split(/[-\/]/);
+      if (parts.length !== 3) return 0;
+      const first = parts[0].length === 4
+        ? new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
+        : new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+      first.setHours(0, 0, 0, 0);
+      return Math.max(0, Math.floor((today - first) / 86400000) + 1);
+    }
+
+    lastAbsentDate.setHours(0, 0, 0, 0);
+    const diff = Math.floor((today - lastAbsentDate) / 86400000);
+    return Math.max(0, diff); // days since last absent (not counting the absent day itself)
+  }
   // ═══════════════════════════════════════════════════════════════════════════════
   function normalizeGoalPercent(value) {
     const p = Number.parseInt(String(value), 10);
@@ -248,9 +293,18 @@
     try { window.localStorage.setItem(K_CUSTOM_LPD, JSON.stringify(map || {})); } catch { }
   }
 
-  function saveHistoryAndCurrent(percent, goalPercent) {
+  function saveHistoryAndCurrent(percent, goalPercent, totalLectures) {
     const today = toIsoDate(getTodayAcademicDay());
     try {
+      // Semester reset detection: if totalLectures dropped to ≤ 8 from a previously high value, clear history
+      const lastTotal = Number.parseInt(window.localStorage.getItem(K_LAST_TOTAL) || "0", 10);
+      if (totalLectures != null && lastTotal > 8 && totalLectures <= 8) {
+        window.localStorage.removeItem(K_HISTORY);
+        window.localStorage.removeItem(K_STREAK);
+      }
+      if (totalLectures != null) {
+        window.localStorage.setItem(K_LAST_TOTAL, String(totalLectures));
+      }
       const historyRaw = window.localStorage.getItem(K_HISTORY);
       const history = historyRaw ? JSON.parse(historyRaw) : [];
       const last = history[history.length - 1];
@@ -937,7 +991,7 @@
       padding: "6px 10px", borderRadius: "12px",
       background: "#fff7ed", border: "1px solid #fdba74",
       verticalAlign: "top", whiteSpace: "nowrap", position: "relative",
-      width: "530px", flexShrink: "0", overflow: "visible"
+      width: "630px", flexShrink: "0", overflow: "visible"
     });
 
     const statusBadge = createStatusBadge(basePercent, storedGoalPercent);
@@ -945,11 +999,11 @@
     const upChip = createDeltaChip(`▲ +${upDelta.toFixed(2)}%`, true);
     const downChip = createDeltaChip(`▼ ${downDelta.toFixed(2)}%`, false);
 
-    // Streak badge — loaded async, inserted when ready
-    loadHistory((history, streak) => {
-      const streakBadge = createStreakBadge(streak);
-      if (streakBadge) wrapper.insertBefore(streakBadge, leaveChip);
+    // Streak from ERP table directly
+    const streak = getStreakFromTable();
+    const streakBadge = createStreakBadge(streak);
 
+    loadHistory((history, _streak) => {
       // Trigger toast on page load
       if (basePercent < storedGoalPercent) {
         const rl = recoveryNeeded;
@@ -1019,6 +1073,21 @@
     const storedLastDay = getStoredLastAcademicDay();
     const todayIso = toIsoDate(getTodayAcademicDay());
 
+    // Returns the minimum selectable ISO date for all calendars/inputs.
+    // After all lectures are done (>= 4:55 PM), today itself is not selectable.
+    function getMinSelectableIso() {
+      const lpd0 = getStoredLecturesPerDay();
+      const clpd0 = getStoredCustomLectures();
+      const tLpd = (clpd0 && clpd0[todayIso] !== undefined) ? clpd0[todayIso] : lpd0;
+      const allDone = getCompletedLecturesToday() >= tLpd;
+      if (allDone) {
+        const d = new Date(getTodayAcademicDay());
+        d.setDate(d.getDate() + 1);
+        return toIsoDate(d);
+      }
+      return todayIso;
+    }
+
     // ── Section A: Scenario Simulator ──
     const secA = sectionBox("Scenario Simulator");
 
@@ -1042,6 +1111,7 @@
 
     const lastDayInput = document.createElement("input");
     lastDayInput.type = "date";
+    lastDayInput.min = getMinSelectableIso();
     lastDayInput.value = storedLastDay || todayIso;
     Object.assign(lastDayInput.style, {
       width: "130px", padding: "6px 8px", borderRadius: "8px",
@@ -1082,7 +1152,8 @@
 
     const holDateInput = document.createElement("input");
     holDateInput.type = "date";
-    holDateInput.value = todayIso;
+    holDateInput.min = getMinSelectableIso();
+    holDateInput.value = getMinSelectableIso();
     Object.assign(holDateInput.style, {
       width: "120px", padding: "5px 7px", borderRadius: "8px",
       border: "1px solid #cbd5e1", background: "#fff", color: "#111827",
@@ -1225,7 +1296,7 @@
     }
 
     function renderMonth(tbody, year, month) {
-      const todayIso = isoOf(getTodayAcademicDay());
+      const minIso = getMinSelectableIso();
       const fromIso  = isoOf(calFrom);
       const toIso    = isoOf(calTo);
       tbody.innerHTML = "";
@@ -1241,11 +1312,11 @@
       for (let day = 1; day <= daysInMonth; day++) {
         const cellDate = new Date(year, month, day);
         const cellIso  = isoOf(cellDate);
-        const isPast   = cellIso < todayIso;
+        const isPast   = cellIso < minIso;
         const isFrom   = cellIso === fromIso;
         const isTo     = cellIso === toIso;
         const inRange  = fromIso && toIso && cellIso > fromIso && cellIso < toIso;
-        const isToday  = cellIso === todayIso;
+        const isToday  = cellIso === todayIso && cellIso >= minIso;
 
         const td = document.createElement("td");
         td.textContent = String(day);
@@ -1410,6 +1481,11 @@
     function renderModifyList() {
       modList.innerHTML = "";
       const customs = getStoredCustomLectures();
+      const minIso = getMinSelectableIso();
+      // Auto-remove past modifications from storage
+      let modChanged = false;
+      Object.keys(customs).forEach(iso => { if (iso < minIso) { delete customs[iso]; modChanged = true; } });
+      if (modChanged) setStoredCustomLectures(customs);
       const dates = Object.keys(customs).sort();
       if (dates.length === 0) {
         const empty = document.createElement("div");
@@ -1463,11 +1539,12 @@
       const toDate   = calTo || calFrom;
       const count = Number.parseInt(modCountInput.value, 10);
       if (!fromDate || isNaN(count)) return;
-      
+      const minIso = getMinSelectableIso();
       const m = getStoredCustomLectures();
       const cursor = new Date(fromDate);
       while (cursor <= toDate) {
-        m[toIsoDate(cursor)] = count;
+        const iso = toIsoDate(cursor);
+        if (iso >= minIso) m[iso] = count;
         cursor.setDate(cursor.getDate() + 1);
       }
       setStoredCustomLectures(m);
@@ -1500,7 +1577,12 @@
     // ─────────────────────────────────────────────────────────────────────────────
     function renderHolidayList() {
       holList.innerHTML = "";
+      const minIso = getMinSelectableIso();
       const holidays = getStoredHolidays();
+      // Auto-remove any past holidays from storage
+      let changed = false;
+      [...holidays].forEach(iso => { if (iso < minIso) { holidays.delete(iso); changed = true; } });
+      if (changed) setStoredHolidays(holidays);
       if (holidays.size === 0) {
         const empty = document.createElement("div");
         empty.textContent = "No holidays added.";
@@ -1536,7 +1618,7 @@
 
     holAddBtn.addEventListener("click", () => {
       const date = holDateInput.value;
-      if (!date) return;
+      if (!date || date < getMinSelectableIso()) return;
       const h = getStoredHolidays();
       h.add(date);
       setStoredHolidays(h);
@@ -1576,15 +1658,28 @@
     function rebuildSatList() {
       satList.innerHTML = "";
       const lastDayDate = parseIsoDate(lastDayInput.value);
-      const today = getTodayAcademicDay();
-      if (!lastDayDate || lastDayDate < today) {
+      const minIso = getMinSelectableIso();
+      const minDate = parseIsoDate(minIso);
+
+      // Auto-purge any past Saturdays from the stored set
+      const storedMap = getStoredOpenSaturdays();
+      const lastIsoKey = lastDayInput.value;
+      if (Array.isArray(storedMap[lastIsoKey])) {
+        const cleaned = storedMap[lastIsoKey].filter(iso => iso >= minIso);
+        if (cleaned.length !== storedMap[lastIsoKey].length) {
+          storedMap[lastIsoKey] = cleaned;
+          setStoredOpenSaturdays(storedMap);
+        }
+      }
+
+      if (!lastDayDate || lastDayDate < minDate) {
         const empty = document.createElement("div");
         empty.textContent = "No Saturdays in range";
         Object.assign(empty.style, { fontSize: "12px", color: "#7c2d12" });
         satList.appendChild(empty);
         return;
       }
-      const sats = listSaturdaysBetween(today, lastDayDate);
+      const sats = listSaturdaysBetween(minDate, lastDayDate);
       if (!sats.length) {
         const none = document.createElement("div");
         none.textContent = "No Saturdays in range";
@@ -1814,11 +1909,7 @@
       bigGraphCanvas = bigGraphBox.querySelector("canvas");
     }
 
-    // Streak badge — loaded async, inserted when ready
-    loadHistory((history, streak) => {
-      const streakBadge = createStreakBadge(streak);
-      if (streakBadge) wrapper.insertBefore(streakBadge, leaveChip);
-    });
+    // Streak badge already added in inline bar assembly above
 
     // ─────────────────────────────────────────────────────────────────────────────
     // UNIFIED CALCULATION UPDATE
@@ -1844,9 +1935,15 @@
       const holidays = getStoredHolidays();
       const customLpdMap = getStoredCustomLectures();
       const todayAcademic = getTodayAcademicDay();
-      const classDays = countScheduledClassDays(todayAcademic, lastDayDate, openSatSet, holidays);
-      let futureLec = calculateTotalFutureLectures(todayAcademic, lastDayDate, openSatSet, holidays, customLpdMap, lpd);
       const completedToday = getCompletedLecturesToday();
+      const todayLpd = (customLpdMap && customLpdMap[toIsoDate(todayAcademic)] !== undefined)
+        ? customLpdMap[toIsoDate(todayAcademic)] : lpd;
+      const allTodayDone = completedToday >= todayLpd;
+      const classDayStart = allTodayDone
+        ? new Date(todayAcademic.getFullYear(), todayAcademic.getMonth(), todayAcademic.getDate() + 1)
+        : todayAcademic;
+      const classDays = countScheduledClassDays(classDayStart, lastDayDate, openSatSet, holidays);
+      let futureLec = calculateTotalFutureLectures(todayAcademic, lastDayDate, openSatSet, holidays, customLpdMap, lpd);
       if (completedToday > 0) futureLec -= completedToday;
 
       // Scenario Simulator
@@ -1948,6 +2045,7 @@
       toggleBtn.textContent = opening ? "▲" : "▼";
       if (opening) {
         updateCalculations(false);
+        checkForUpdate(popup);
       }
     });
 
@@ -1964,6 +2062,7 @@
 
     // ── Assemble inline bar ──
     wrapper.appendChild(statusBadge);
+    if (streakBadge) wrapper.appendChild(streakBadge);
     wrapper.appendChild(leaveChip);
     wrapper.appendChild(upChip);
     wrapper.appendChild(downChip);
@@ -2002,7 +2101,7 @@
     }
 
     // Save to chrome.storage for background.js notification context
-    saveHistoryAndCurrent(currentPercent, getStoredGoalPercent());
+    saveHistoryAndCurrent(currentPercent, getStoredGoalPercent(), totalLectures);
 
     renderInlineTools(attendanceContainer, totalLectures, totalAbsent, currentPercent);
     return true;
