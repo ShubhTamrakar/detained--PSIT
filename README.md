@@ -117,7 +117,7 @@ Stop doing attendance math in your head. This extension does it for you — live
 
 Made with 🚩 by **$hubhT** — PSIT CSE '24–'28
 
-[🌐 Website](https://shubhtamrakar.github.io/detained--PSIT) • [⭐ Star on GitHub](../../stargazers) • [🐛 Report a Bug](../../issues)
+[🌐 Website](https://whydetained.pages.dev) • [⭐ Star on GitHub](../../stargazers) • [🐛 Report a Bug](../../issues)
 
 </div>
 
