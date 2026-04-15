@@ -113,6 +113,14 @@ Stop doing attendance math in your head. This extension does it for you — live
 
 ---
 
+## 💸 Is This Free?
+
+> [!NOTE]
+> **Yes — 100% free, forever.**
+> Detained? is an open-source project with no subscription, no one-time fee, no in-app purchases, and no hidden costs of any kind. Install it, use it, and never pay a cent. The source code is publicly available under the MIT license so you can verify this yourself.
+
+---
+
 <div align="center">
 
 Made with 🚩 by **$hubhT'24-'28**
