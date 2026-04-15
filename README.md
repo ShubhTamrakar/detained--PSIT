@@ -2,42 +2,74 @@
 
 <img src="assets/banner.png" width="800" alt="Detained? Banner">
 
-# 🚨 DETAINED? 
+# 💀 DETAINED?
 
-**The ultimate vibe check for your PSIT attendance.** 💀
+**The ultimate vibe check for your PSIT attendance.**
 
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/Version-1.0.0-purple.svg)]()
-[![Platform](https://img.shields.io/badge/Platform-Chrome%20%7C%20Edge-orange.svg)]()
+[![Version](https://img.shields.io/badge/Version-2.0.0-purple.svg)]()
+[![Platform](https://img.shields.io/badge/Platform-Chrome%20%7C%20Edge%20%7C%20Brave-orange.svg)]()
 
 ---
 
 ### **"Am I getting detained?"**
-Stop doing the quick maths in your head during lectures. We got you.
+Stop doing attendance math in your head. This extension does it for you — live, accurate, and right inside the PSIT ERP.
 
 </div>
 
-## 🚀 Key Features
+## 🚀 What's New in v2.0
+
+- 📈 **Attendance Trend Graph** — per-day history + predicted projection line with hover tooltips
+- 🗓️ **Dual-Month Calendar** — smart date picker for the Academic Planner (past dates disabled)
+- 🎯 **Goal-aware status** — SAFE / CLOSE / BELOW GOAL (replaces misleading "DETAINED" label)
+- 📊 **Accurate projections** — graph, simulator, and planner all use consistent formulas
+- 💀 **Impossible goal detection** — 100% goal with existing absences shows a 💀 warning
+- 🏖️ **Holidays & open Saturdays** — fully respected by graph and planner
+- ⚡ **Real-time updates** — all chips, badges, and graph update instantly on goal/input changes
+
+---
+
+## ✨ Features
 
 <table>
   <tr>
     <td width="50%">
-      <h3>📉 Real-Time Stats</h3>
-      Know your real % after OA adjustments instantly. No more "assuming" you're safe.
+      <h3>📊 Real-Time Stats Bar</h3>
+      Live attendance %, SAFE/CLOSE/BELOW GOAL badge, leave allowance chip, and +/- delta chips — injected right next to the ERP attendance header.
     </td>
     <td width="50%">
-      <h3>🟢 Leave Calculator</h3>
-      Find out EXACTLY how many days and lectures you can bunk without hitting the 75% red zone.
+      <h3>🟢 Bunk Buddy</h3>
+      Tells you exactly how many days and lectures you can skip against your personal goal %. Updates live.
     </td>
   </tr>
   <tr>
     <td width="50%">
       <h3>🎯 Scenario Simulator</h3>
-      Tryna skip a week for a trip? Enter the days and see your future attendance before you go.
+      Set your goal %, days to skip, and lectures to skip. See projected % instantly — before you commit to that trip.
     </td>
     <td width="50%">
       <h3>📅 Academic Planner</h3>
-      Set your semester end date. We'll show you the projected % if you attend every class till then.
+      Set your last academic day. Get projected end-of-semester %, max leaves, class days remaining — with custom Saturdays and holidays.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <h3>📈 Attendance Trend Graph</h3>
+      A canvas graph with a data point for every class day. Actual history (blue) + predicted projection (red dashed). Hover any point for date and %.
+    </td>
+    <td width="50%">
+      <h3>🗓️ Smart Inline Calendar</h3>
+      Dual-month calendar for setting custom lecture ranges. Click start → end date. Past dates are disabled. Today is highlighted.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <h3>🔥 Streak Badge</h3>
+      Tracks your consecutive attendance streak and shows it as a fire badge.
+    </td>
+    <td width="50%">
+      <h3>⚠️ Smart Alerts</h3>
+      Toast notifications when you're close to your goal, below goal, or when 100% is literally impossible (💀).
     </td>
   </tr>
 </table>
@@ -48,41 +80,44 @@ Stop doing the quick maths in your head during lectures. We got you.
 
 <div align="center">
   <img src="https://img.shields.io/badge/Vanilla_JS-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black">
-  <img src="https://img.shields.io/badge/Chrome_Extension-4285F4?style=for-the-badge&logo=google-chrome&logoColor=white">
-  <img src="https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white">
-  <img src="https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white">
+  <img src="https://img.shields.io/badge/Chrome_Extension_MV3-4285F4?style=for-the-badge&logo=google-chrome&logoColor=white">
+  <img src="https://img.shields.io/badge/Canvas_API-E34F26?style=for-the-badge&logo=html5&logoColor=white">
+  <img src="https://img.shields.io/badge/LocalStorage-1572B6?style=for-the-badge&logo=css3&logoColor=white">
 </div>
 
 ---
 
-## 📥 Quick Install (Chrome / Edge)
+## 📥 Quick Install (Chrome / Edge / Brave)
 
-Manual install is the only way to keep it free, but it's a 30-second move:
+> No Chrome Web Store listing — manual install keeps it free and open.
 
-1.  **Download & Unzip**
-    Download the latest `detained-v1.0.0.zip` from the [Releases Page](../../releases/latest) and extract it.
-2.  **Dev Mode ON**
-    Go to `chrome://extensions` or `edge://extensions` and toggle **Developer Mode** in the top right.
-3.  **Load Unpacked**
-    Click **Load unpacked** and select the folder you just extracted.
-4.  **Flex**
-    Go to your [Attendance Page](https://erp.psit.ac.in/Student/MyAttendanceDetail) and watch the magic happen. ✨
+1. **Download & Unzip**
+   Download the latest `detained-v2.0.0.zip` from the [Releases Page](../../releases/latest) and extract it.
+
+2. **Enable Dev Mode**
+   Go to `chrome://extensions` (or `edge://extensions`) and toggle **Developer Mode** on.
+
+3. **Load Unpacked**
+   Click **Load unpacked** and select the extracted folder.
+
+4. **Open ERP**
+   Go to your [Attendance Page](https://erp.psit.ac.in/Student/MyAttendanceDetail) — the extension activates automatically.
 
 ---
 
 ## 🔒 Privacy & Safety
 
 > [!IMPORTANT]
-> **No data capting here.** 
-> All your data stays in your browser's local storage. Zero network requests, zero servers. We're here for the stats, not your info.
+> **Zero data leaves your browser.**
+> All calculations happen locally using data already on the page you're viewing. No API calls, no servers, no tracking. Settings are saved in `localStorage` only.
 
 ---
 
 <div align="center">
 
-Made with 🚩 by **$hubhT** (PSIT '24–'28)
+Made with 🚩 by **$hubhT** — PSIT CSE '24–'28
 
-[Support this project](../../stargazers) • [Report a Bug](../../issues)
+[🌐 Website](https://whydetained.pages.dev) • [⭐ Star on GitHub](../../stargazers) • [🐛 Report a Bug](../../issues)
 
 </div>
 
