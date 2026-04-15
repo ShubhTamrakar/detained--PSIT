@@ -113,14 +113,6 @@ Stop doing attendance math in your head. This extension does it for you — live
 
 ---
 
-## 🗺️ Roadmap
-
-- [ ] Subject-wise attendance breakdown
-- [ ] Push notifications when approaching the threshold
-- [ ] Firefox support
-
----
-
 <div align="center">
 
 Made with 🚩 by **$hubhT** — PSIT CSE '24–'28
