@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Detained?",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "description": "Am I getting detained? Find out instantly — live attendance %, leave calculator, scenario simulator, trend graph & smart alerts on PSIT ERP.",
   "icons": {
     "16": "icons/icon16.png",
