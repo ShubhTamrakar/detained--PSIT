@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Detained? | The Ultimate PSIT Attendance Flex</title>
+    <title>Detained? | PSIT Attendance Tracker</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="icon" href="assets/icon128.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,11 +14,12 @@
     <nav class="navbar glass">
         <div class="container">
             <div class="logo">
-                <span class="logo-emoji">🚨</span>
+                <span class="logo-emoji">💀</span>
                 <span class="logo-text">DETAINED?</span>
             </div>
             <div class="nav-links">
                 <a href="#features">Features</a>
+                <a href="#how-it-works">How It Works</a>
                 <a href="#install">Install</a>
                 <a href="#privacy">Privacy</a>
             </div>
@@ -29,14 +30,15 @@
         <div class="container">
             <div class="hero-content">
                 <div class="hero-text animate-up">
+                    <div class="version-badge">v2.0.0 — Now with Trend Graph & Smart Calendar</div>
                     <h1 class="glitch" data-text="DETAINED?">DETAINED?</h1>
-                    <p class="tagline">The ultimate vibe check for your PSIT attendance. Stop the manual maths, start the flex.</p>
+                    <p class="tagline">The ultimate vibe check for your PSIT attendance. Real-time %, leave calculator, scenario simulator, attendance trend graph & smart planner — all in one extension.</p>
                     <div class="cta-group">
                         <a href="https://github.com/ShubhTamrakar/detained--PSIT/releases/latest" id="chrome-btn" class="btn btn-primary">
                             <span class="icon">📦</span> Download for Chrome / Brave
                         </a>
-                        <a href="#" id="edge-btn" class="btn btn-outline">
-                            <span class="icon">🌐</span> Install for Edge
+                        <a href="https://github.com/ShubhTamrakar/detained--PSIT" id="edge-btn" class="btn btn-outline">
+                            <span class="icon">⭐</span> Star on GitHub
                         </a>
                     </div>
                     <p class="btn-subtext">Free forever • Open Source • 100% Privacy</p>
@@ -50,43 +52,100 @@
         </div>
     </header>
 
-    <section id="features" class="features">
+    <!-- Stats Bar -->
+    <section class="stats-bar">
         <div class="container">
-            <h2 class="section-title">Upgrade Your ERP Experience</h2>
-            <div class="feature-grid">
-                <div class="feature-card glass">
-                    <div class="feature-icon">📉</div>
-                    <h3>Real-Time Stats</h3>
-                    <p>Instantly see your real % after OA adjustments. No more guessing, just cold hard facts.</p>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <span class="stat-value">100%</span>
+                    <span class="stat-label">Local — no servers</span>
                 </div>
-                <div class="feature-card glass">
-                    <div class="feature-icon">🟢</div>
-                    <h3>Bunk Buddy</h3>
-                    <p>Tells you exactly how many days and lectures you can skip while staying in the safe zone.</p>
+                <div class="stat-item">
+                    <span class="stat-value">0ms</span>
+                    <span class="stat-label">Network requests</span>
                 </div>
-                <div class="feature-card glass">
-                    <div class="feature-icon">🎯</div>
-                    <h3>Future Predictor</h3>
-                    <p>Enter your planned leaves and see your projected attendance before you even step out.</p>
+                <div class="stat-item">
+                    <span class="stat-value">PSIT</span>
+                    <span class="stat-label">ERP Compatible</span>
                 </div>
-                <div class="feature-card glass">
-                    <div class="feature-icon">📅</div>
-                    <h3>Academic Planner</h3>
-                    <p>Set your last date and get a full projection. Perfect for planning those end-of-sem trips.</p>
+                <div class="stat-item">
+                    <span class="stat-value">v2.0</span>
+                    <span class="stat-label">Latest version</span>
                 </div>
             </div>
         </div>
     </section>
 
-    <section class="video-section">
+    <section id="features" class="features">
         <div class="container">
-            <div class="video-container glass">
-                <div class="video-placeholder">
-                    <span>🎬 Video Tutorial Coming Soon</span>
-                    <p>Watch how to install and use Detained? in 60 seconds.</p>
+            <h2 class="section-title">Everything You Need. Nothing You Don't.</h2>
+            <div class="feature-grid">
+                <div class="feature-card glass">
+                    <div class="feature-icon">📊</div>
+                    <h3>Real-Time Stats</h3>
+                    <p>Live attendance % with OA adjustments, status badge (SAFE / CLOSE / BELOW GOAL), and per-lecture delta chips — right inside the ERP page.</p>
                 </div>
-                <!-- Replace with iframe when ready -->
-                <!-- <iframe width="100%" height="100%" src="https://www.youtube.com/embed/YOUR_ID" frameborder="0" allowfullscreen></iframe> -->
+                <div class="feature-card glass">
+                    <div class="feature-icon">🟢</div>
+                    <h3>Bunk Buddy</h3>
+                    <p>Tells you exactly how many days and lectures you can skip against your personal goal. Updates in real-time as you change the goal %.</p>
+                </div>
+                <div class="feature-card glass">
+                    <div class="feature-icon">🎯</div>
+                    <h3>Scenario Simulator</h3>
+                    <p>Enter planned days/lectures to skip and instantly see your projected attendance. Know before you go.</p>
+                </div>
+                <div class="feature-card glass">
+                    <div class="feature-icon">📅</div>
+                    <h3>Academic Planner</h3>
+                    <p>Set your last academic day. Get projected end-of-semester %, leave headroom, class days remaining — with full Mon–Sat schedule support.</p>
+                </div>
+                <div class="feature-card glass">
+                    <div class="feature-icon">📈</div>
+                    <h3>Attendance Trend Graph</h3>
+                    <p>Visual history of every day's attendance + a predicted projection line. Hover any point to see exact date and percentage.</p>
+                </div>
+                <div class="feature-card glass">
+                    <div class="feature-icon">🗓️</div>
+                    <h3>Smart Date Picker</h3>
+                    <p>Dual-month inline calendar for setting custom lecture ranges. Past dates disabled. Today highlighted. Select start → end in two clicks.</p>
+                </div>
+                <div class="feature-card glass">
+                    <div class="feature-icon">🏖️</div>
+                    <h3>Holidays & Saturdays</h3>
+                    <p>Mark open Saturdays and custom holidays. The planner and graph automatically adjust projections around your real schedule.</p>
+                </div>
+                <div class="feature-card glass">
+                    <div class="feature-icon">🔥</div>
+                    <h3>Streak & Smart Alerts</h3>
+                    <p>Attendance streak badge, toast alerts when you're dangerously close to your goal, and 💀 warning when 100% is mathematically impossible.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How it works -->
+    <section id="how-it-works" class="how-section">
+        <div class="container">
+            <h2 class="section-title">How It Works</h2>
+            <div class="how-grid">
+                <div class="how-item glass">
+                    <div class="how-icon">🔍</div>
+                    <h3>Reads the Page</h3>
+                    <p>Parses your ERP attendance table directly in the browser. No API, no login, no permissions beyond the page you're already on.</p>
+                </div>
+                <div class="how-arrow">→</div>
+                <div class="how-item glass">
+                    <div class="how-icon">⚙️</div>
+                    <h3>Calculates Live</h3>
+                    <p>Computes attendance %, leave allowance, recovery lectures, and day-by-day projections using your real schedule and custom settings.</p>
+                </div>
+                <div class="how-arrow">→</div>
+                <div class="how-item glass">
+                    <div class="how-icon">✨</div>
+                    <h3>Shows You the Truth</h3>
+                    <p>Injects a clean floating bar and graph below the table. Updates in real-time as you change goals or simulate absences.</p>
+                </div>
             </div>
         </div>
     </section>
@@ -97,19 +156,23 @@
             <div class="install-steps">
                 <div class="step">
                     <div class="step-num">1</div>
-                    <p>Download & extract the latest ZIP from GitHub.</p>
+                    <h4>Download</h4>
+                    <p>Grab the latest ZIP from the <a href="https://github.com/ShubhTamrakar/detained--PSIT/releases/latest" class="link">GitHub Releases</a> page and extract it.</p>
                 </div>
                 <div class="step">
                     <div class="step-num">2</div>
-                    <p>Go to <code>chrome://extensions</code> and turn on <b>Developer Mode</b>.</p>
+                    <h4>Dev Mode</h4>
+                    <p>Go to <code>chrome://extensions</code> and turn on <b>Developer Mode</b> in the top right.</p>
                 </div>
                 <div class="step">
                     <div class="step-num">3</div>
-                    <p>Click <b>Load unpacked</b> and select the extracted folder.</p>
+                    <h4>Load Unpacked</h4>
+                    <p>Click <b>Load unpacked</b> and select the extracted folder. That's it.</p>
                 </div>
                 <div class="step">
                     <div class="step-num">4</div>
-                    <p>Flex your attendance stats on the ERP dashboard! ✨</p>
+                    <h4>Open ERP</h4>
+                    <p>Go to your <a href="https://erp.psit.ac.in/Student/MyAttendanceDetail" class="link">Attendance page</a> and watch the magic. ✨</p>
                 </div>
             </div>
         </div>
@@ -119,6 +182,7 @@
         <div class="container">
             <div class="privacy-box glass">
                 <h2>🔒 Trust & Privacy</h2>
+                <p class="privacy-sub">Your data never leaves your browser. Ever.</p>
                 <div class="privacy-grid">
                     <div class="privacy-item">
                         <span class="check">✅</span> No Data Collection
@@ -127,10 +191,16 @@
                         <span class="check">✅</span> 100% Local Storage
                     </div>
                     <div class="privacy-item">
-                        <span class="check">✅</span> Zero Servers
+                        <span class="check">✅</span> Zero Network Requests
                     </div>
                     <div class="privacy-item">
                         <span class="check">✅</span> Fully Open Source
+                    </div>
+                    <div class="privacy-item">
+                        <span class="check">✅</span> No Login Required
+                    </div>
+                    <div class="privacy-item">
+                        <span class="check">✅</span> MIT Licensed
                     </div>
                 </div>
             </div>
@@ -139,9 +209,11 @@
 
     <footer class="footer">
         <div class="container">
-            <p>Made with 💀 by <b>$hubhT</b> (PSIT '24–'28)</p>
+            <p>Made with 🚩 by <b>$hubhT</b> — PSIT CSE '24–'28</p>
+            <p class="footer-sub">Built for students, by a student. Because nobody should be doing attendance math during a lecture.</p>
             <div class="footer-links">
                 <a href="https://github.com/ShubhTamrakar/detained--PSIT">GitHub Source</a>
+                <a href="https://github.com/ShubhTamrakar/detained--PSIT/releases">Releases</a>
                 <a href="https://github.com/ShubhTamrakar/detained--PSIT/issues">Report Bug</a>
             </div>
         </div>
