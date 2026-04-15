@@ -115,7 +115,7 @@ Stop doing attendance math in your head. This extension does it for you — live
 
 <div align="center">
 
-Made with 🚩 by **$hubhT** — PSIT CSE '24–'28
+Made with 🚩 by **$hubhT'24-'28**
 
 [🌐 Website](https://whydetained.pages.dev) • [⭐ Star on GitHub](../../stargazers) • [🐛 Report a Bug](../../issues)
 
