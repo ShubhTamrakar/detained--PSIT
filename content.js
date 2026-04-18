@@ -22,7 +22,130 @@
   const K_LAST_TOTAL = "psit_last_total_lectures"; // last seen totalLectures — for semester reset detection
 
   const K_UPDATE_DISMISSED = "detained_update_dismissed_v";
+  const K_THEME = "psit_active_theme";
 
+  // ─── Namespacing Utility ──────────────────────────────────────────────────────
+  function getUserRoll() {
+    const profileLink = document.querySelector(".menu-profile-link strong");
+    if (!profileLink) return "global";
+    const roll = profileLink.textContent.trim().replace(/[^\d]/g, "");
+    return roll || "global";
+  }
+
+  function getStoreKey(baseKey) {
+    return `${getUserRoll()}:${baseKey}`;
+  }
+
+  const THEMES = {
+    sunset: {
+      name: "Sunset Glow",
+      "--psit-primary": "linear-gradient(135deg, #f97316 0%, #fb923c 100%)",
+      "--psit-panel-bg": "#ffffff",
+      "--psit-card-bg": "#fffcf9",
+      "--psit-border": "#fdba74",
+      "--psit-text": "#431407",
+      "--psit-accent": "#f97316",
+      "--psit-shadow": "0 10px 30px rgba(124, 45, 18, 0.12)"
+    },
+    midnight: {
+      name: "Midnight Glass",
+      "--psit-primary": "linear-gradient(135deg, #6366f1 0%, #a855f7 100%)",
+      "--psit-panel-bg": "#0f172a",
+      "--psit-card-bg": "#1e293b",
+      "--psit-border": "#334155",
+      "--psit-text": "#f8fafc",
+      "--psit-accent": "#e9d5ff",
+      "--psit-shadow": "0 10px 30px rgba(0, 0, 0, 0.4)"
+    },
+    rose: {
+      name: "Cherry Blossom",
+      "--psit-primary": "linear-gradient(135deg, #e11d48 0%, #fb7185 100%)",
+      "--psit-panel-bg": "#ffffff",
+      "--psit-card-bg": "#fff1f2",
+      "--psit-border": "#fecdd3",
+      "--psit-text": "#881337",
+      "--psit-accent": "#e11d48",
+      "--psit-shadow": "0 10px 30px rgba(136, 19, 55, 0.12)"
+    },
+    emerald: {
+      name: "Cyber Emerald",
+      "--psit-primary": "linear-gradient(135deg, #059669 0%, #34d399 100%)",
+      "--psit-panel-bg": "#022c22",
+      "--psit-card-bg": "#064e3b",
+      "--psit-border": "#065f46",
+      "--psit-text": "#ecfdf5",
+      "--psit-accent": "#a7f3d0",
+      "--psit-shadow": "0 10px 30px rgba(0, 0, 0, 0.3)"
+    }
+  };
+
+  function updateThemeVariables(themeKey) {
+    const t = THEMES[themeKey] || THEMES.sunset;
+    Object.keys(t).forEach(key => {
+      if (key.startsWith("--")) {
+        document.documentElement.style.setProperty(key, t[key]);
+      }
+    });
+    setStoredTheme(themeKey);
+  }
+
+  function getStoredTheme() {
+    return window.localStorage.getItem(getStoreKey(K_THEME)) || "sunset";
+  }
+
+  function setStoredTheme(t) {
+    window.localStorage.setItem(getStoreKey(K_THEME), t);
+  }
+
+  // ─── Help Tooltip System ──────────────────────────────────────────────────────
+  let helpTimeout = null;
+  const helpEl = document.createElement("div");
+  Object.assign(helpEl.style, {
+    position: "fixed", pointerEvents: "none", zIndex: "2147483647",
+    padding: "10px 14px", borderRadius: "12px", background: "rgba(15, 23, 42, 0.98)",
+    color: "#fff", fontSize: "12px", fontWeight: "600",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.3)", opacity: "0", transition: "opacity 0.2s, transform 0.2s",
+    transform: "translateY(10px)", whiteSpace: "pre-wrap", maxWidth: "250px", border: "1px solid rgba(255,255,255,0.15)"
+  });
+  document.body.appendChild(helpEl);
+
+  function showHelp(text, x, y) {
+    helpEl.textContent = text;
+    helpEl.style.left = x + "px";
+    helpEl.style.top = (y - helpEl.offsetHeight - 15) + "px";
+    helpEl.style.opacity = "1";
+    helpEl.style.transform = "translateY(0)";
+  }
+
+  function hideHelp() {
+    helpEl.style.opacity = "0";
+    helpEl.style.transform = "translateY(10px)";
+    if (helpTimeout) clearTimeout(helpTimeout);
+  }
+
+  document.addEventListener("mousemove", e => {
+    if (helpEl.style.opacity === "1") {
+      helpEl.style.left = e.clientX + "px";
+      helpEl.style.top = (e.clientY - helpEl.offsetHeight - 15) + "px";
+    }
+  });
+
+  function attachHelp(el, text) {
+    if (!el) return;
+    const triggerHelp = (e) => {
+      // Do not show if user is actively interacting (typing or clicking)
+      if (document.activeElement === el) return;
+      if (helpTimeout) clearTimeout(helpTimeout);
+      helpTimeout = setTimeout(() => {
+        showHelp(text, e.clientX, e.clientY);
+      }, 500); // Sharp 0.5s idle trigger
+    };
+    el.addEventListener("mouseenter", triggerHelp);
+    el.addEventListener("mousemove", triggerHelp); // Reset timer on move to ensure "idle"
+    el.addEventListener("mouseleave", hideHelp);
+    el.addEventListener("mousedown", hideHelp);
+    el.addEventListener("keydown", hideHelp);
+  }
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // SECTION 0 — UPDATE CHECKER
@@ -77,9 +200,9 @@
             !sessionStorage.getItem(K_UPDATE_DISMISSED + data.version)) {
           showUpdateBanner(popup, data.version, data.releaseUrl);
         }
-      } catch (e) { console.warn("[Detained?] Update parse failed:", e); }
+      } catch (e) { console.warn("[Detained?] Update parse failed:", e.message); }
     };
-    xhr.onerror = () => console.warn("[Detained?] Update check failed");
+    xhr.onerror = () => console.warn("[Detained?] Update check network error");
     xhr.send();
   }
 
@@ -106,10 +229,16 @@
   // ═══════════════════════════════════════════════════════════════════════════════
   function parseAttendanceTable(totalLecturesSummary, totalAttendedSummary) {
     const table = document.getElementById("data-table-buttons");
-    if (!table) return [];
+    if (!table) {
+      console.warn("[Detained?] Attendance table not found - DOM may have changed");
+      return [];
+    }
 
     const rows = Array.from(table.querySelectorAll("tbody tr"));
-    if (rows.length === 0) return [];
+    if (rows.length === 0) {
+      console.warn("[Detained?] No attendance rows found in table");
+      return [];
+    }
 
     // First pass: Calculate total lectures and attended in the VISIBLE table
     let tableTotalLectures = 0;
@@ -161,52 +290,66 @@
     if (!table) return 0;
     const rows = Array.from(table.querySelectorAll("tbody tr"));
 
-    // Find the most recent row that has an absence
+    // Find the most recent date that has an absence
     let lastAbsentDate = null;
+    let firstRecordDate = null;
+
     for (let i = rows.length - 1; i >= 0; i--) {
       const cells = rows[i].querySelectorAll("td");
       if (cells.length < 11) continue;
-      for (let j = 2; j <= 10; j++) {
-        const text = cells[j].textContent.trim().toUpperCase();
-        const html = cells[j].innerHTML.toUpperCase();
-        if (text.includes("ABS") || html.includes("ABS")) {
-          // Parse date from cells[1], format: YYYY-MM-DD or DD-MM-YYYY
-          const raw = cells[1].textContent.trim();
-          const parts = raw.split(/[-\/]/);
-          if (parts.length === 3) {
-            // Detect YYYY-MM-DD vs DD-MM-YYYY
-            const d = parts[0].length === 4
-              ? new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
-              : new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
-            if (!isNaN(d)) lastAbsentDate = d;
-          }
-          break;
-        }
-      }
-      if (lastAbsentDate) break;
-    }
-
-    // Streak = calendar days from (lastAbsentDate + 1) to today
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (!lastAbsentDate) {
-      // No absence ever — streak is total days since first entry
-      const firstRow = rows.find(r => r.querySelectorAll("td").length >= 2);
-      if (!firstRow) return 0;
-      const raw = firstRow.querySelectorAll("td")[1].textContent.trim();
+      
+      const raw = cells[1].textContent.trim();
       const parts = raw.split(/[-\/]/);
-      if (parts.length !== 3) return 0;
-      const first = parts[0].length === 4
+      if (parts.length !== 3) continue;
+      
+      const d = parts[0].length === 4
         ? new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
         : new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
-      first.setHours(0, 0, 0, 0);
-      return Math.max(0, Math.floor((today - first) / 86400000) + 1);
+      
+      if (isNaN(d.getTime())) continue;
+      d.setHours(0, 0, 0, 0);
+      
+      if (!firstRecordDate || d < firstRecordDate) firstRecordDate = d;
+
+      if (!lastAbsentDate) {
+        for (let j = 2; j <= 10; j++) {
+          const text = cells[j].textContent.trim().toUpperCase();
+          const html = cells[j].innerHTML.toUpperCase();
+          if (text.includes("ABS") || html.includes("ABS")) {
+            lastAbsentDate = d;
+            break;
+          }
+        }
+      }
+      if (lastAbsentDate && firstRecordDate) break; // We found what we need
     }
 
-    lastAbsentDate.setHours(0, 0, 0, 0);
-    const diff = Math.floor((today - lastAbsentDate) / 86400000);
-    return Math.max(0, diff); // days since last absent (not counting the absent day itself)
+    // Determine the effective range for the streak
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    // Rule: Count today only after 4:55 PM (16:55)
+    const isAfterSchool = now.getHours() > 16 || (now.getHours() === 16 && now.getMinutes() >= 55);
+    const effectiveEndDate = isAfterSchool ? today : new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+
+    const startDate = lastAbsentDate 
+      ? new Date(lastAbsentDate.getFullYear(), lastAbsentDate.getMonth(), lastAbsentDate.getDate() + 1)
+      : (firstRecordDate || today);
+
+    if (startDate > effectiveEndDate) return 0;
+
+    // Get scheduling info for accurate counting
+    const lastDayIso = getStoredLastAcademicDay();
+    const openSatSet = new Set();
+    const satMap = getStoredOpenSaturdays();
+    // Consolidate all known open Saturdays across any sessions for historical accuracy
+    Object.values(satMap).forEach(list => {
+      if (Array.isArray(list)) list.forEach(s => openSatSet.add(s));
+    });
+    
+    const holidays = getStoredHolidays();
+    
+    return countScheduledClassDays(startDate, effectiveEndDate, openSatSet, holidays);
   }
   // ═══════════════════════════════════════════════════════════════════════════════
   function normalizeGoalPercent(value) {
@@ -216,18 +359,18 @@
 
   function getStoredGoalPercent() {
     try {
-      const raw = window.localStorage.getItem(K_THRESHOLD);
+      const raw = window.localStorage.getItem(getStoreKey(K_THRESHOLD));
       return raw === null ? SAFE_THRESHOLD_PERCENT : normalizeGoalPercent(raw);
     } catch { return SAFE_THRESHOLD_PERCENT; }
   }
 
   function setStoredGoalPercent(value) {
-    try { window.localStorage.setItem(K_THRESHOLD, String(normalizeGoalPercent(value))); } catch { }
+    try { window.localStorage.setItem(getStoreKey(K_THRESHOLD), String(normalizeGoalPercent(value))); } catch { }
   }
 
   function getStoredLecturesPerDay() {
     try {
-      const raw = window.localStorage.getItem(K_LPD);
+      const raw = window.localStorage.getItem(getStoreKey(K_LPD));
       if (!raw) return DEFAULT_LECTURES_PER_DAY;
       const n = Number.parseInt(raw, 10);
       return Number.isNaN(n) || n < 1 || n > 30 ? DEFAULT_LECTURES_PER_DAY : n;
@@ -238,25 +381,25 @@
     try {
       const n = Number.parseInt(String(value), 10);
       if (!Number.isNaN(n) && n >= 1 && n <= 30) {
-        window.localStorage.setItem(K_LPD, String(n));
+        window.localStorage.setItem(getStoreKey(K_LPD), String(n));
       }
     } catch { }
   }
 
   function getStoredLastAcademicDay() {
-    try { return window.localStorage.getItem(K_LAST_DAY) || ""; } catch { return ""; }
+    try { return window.localStorage.getItem(getStoreKey(K_LAST_DAY)) || ""; } catch { return ""; }
   }
 
   function setStoredLastAcademicDay(value) {
     try {
-      if (!value) { window.localStorage.removeItem(K_LAST_DAY); return; }
-      window.localStorage.setItem(K_LAST_DAY, value);
+      if (!value) { window.localStorage.removeItem(getStoreKey(K_LAST_DAY)); return; }
+      window.localStorage.setItem(getStoreKey(K_LAST_DAY), value);
     } catch { }
   }
 
   function getStoredOpenSaturdays() {
     try {
-      const raw = window.localStorage.getItem(K_SATURDAYS);
+      const raw = window.localStorage.getItem(getStoreKey(K_SATURDAYS));
       if (!raw) return {};
       const p = JSON.parse(raw);
       return p && typeof p === "object" ? p : {};
@@ -264,12 +407,12 @@
   }
 
   function setStoredOpenSaturdays(map) {
-    try { window.localStorage.setItem(K_SATURDAYS, JSON.stringify(map || {})); } catch { }
+    try { window.localStorage.setItem(getStoreKey(K_SATURDAYS), JSON.stringify(map || {})); } catch { }
   }
 
   function getStoredHolidays() {
     try {
-      const raw = window.localStorage.getItem(K_HOLIDAYS);
+      const raw = window.localStorage.getItem(getStoreKey(K_HOLIDAYS));
       if (!raw) return new Set();
       const arr = JSON.parse(raw);
       return Array.isArray(arr) ? new Set(arr) : new Set();
@@ -277,12 +420,12 @@
   }
 
   function setStoredHolidays(set) {
-    try { window.localStorage.setItem(K_HOLIDAYS, JSON.stringify([...set])); } catch { }
+    try { window.localStorage.setItem(getStoreKey(K_HOLIDAYS), JSON.stringify([...set])); } catch { }
   }
 
   function getStoredCustomLectures() {
     try {
-      const raw = window.localStorage.getItem(K_CUSTOM_LPD);
+      const raw = window.localStorage.getItem(getStoreKey(K_CUSTOM_LPD));
       if (!raw) return {};
       const p = JSON.parse(raw);
       return p && typeof p === "object" ? p : {};
@@ -290,22 +433,33 @@
   }
 
   function setStoredCustomLectures(map) {
-    try { window.localStorage.setItem(K_CUSTOM_LPD, JSON.stringify(map || {})); } catch { }
+    try { window.localStorage.setItem(getStoreKey(K_CUSTOM_LPD), JSON.stringify(map || {})); } catch { }
   }
 
   function saveHistoryAndCurrent(percent, goalPercent, totalLectures) {
     const today = toIsoDate(getTodayAcademicDay());
     try {
+      // Check localStorage quota before saving
+      const testKey = "__quota_test__";
+      try {
+        window.localStorage.setItem(testKey, "test");
+        window.localStorage.removeItem(testKey);
+      } catch (e) {
+        console.warn("[Detained?] localStorage quota exceeded or disabled:", e.message);
+        return;
+      }
+
       // Semester reset detection: if totalLectures dropped to ≤ 8 from a previously high value, clear history
-      const lastTotal = Number.parseInt(window.localStorage.getItem(K_LAST_TOTAL) || "0", 10);
+      const lastTotalRaw = window.localStorage.getItem(getStoreKey(K_LAST_TOTAL));
+      const lastTotal = Number.parseInt(lastTotalRaw || "0", 10);
       if (totalLectures != null && lastTotal > 8 && totalLectures <= 8) {
-        window.localStorage.removeItem(K_HISTORY);
-        window.localStorage.removeItem(K_STREAK);
+        window.localStorage.removeItem(getStoreKey(K_HISTORY));
+        window.localStorage.removeItem(getStoreKey(K_STREAK));
       }
       if (totalLectures != null) {
-        window.localStorage.setItem(K_LAST_TOTAL, String(totalLectures));
+        window.localStorage.setItem(getStoreKey(K_LAST_TOTAL), String(totalLectures));
       }
-      const historyRaw = window.localStorage.getItem(K_HISTORY);
+      const historyRaw = window.localStorage.getItem(getStoreKey(K_HISTORY));
       const history = historyRaw ? JSON.parse(historyRaw) : [];
       const last = history[history.length - 1];
 
@@ -325,19 +479,20 @@
         else break;
       }
 
-      window.localStorage.setItem(K_HISTORY, JSON.stringify(history));
-      window.localStorage.setItem(K_STREAK, String(streak));
-    } catch (e) { console.error("Detained? storage error:", e); }
+      window.localStorage.setItem(getStoreKey(K_HISTORY), JSON.stringify(history));
+      window.localStorage.setItem(getStoreKey(K_STREAK), String(streak));
+    } catch (e) { console.error("[Detained?] storage error:", e.message); }
   }
 
   function loadHistory(cb) {
     try {
-      const historyRaw = window.localStorage.getItem(K_HISTORY);
-      const streakRaw = window.localStorage.getItem(K_STREAK);
+      const historyRaw = window.localStorage.getItem(getStoreKey(K_HISTORY));
+      const streakRaw = window.localStorage.getItem(getStoreKey(K_STREAK));
       const history = historyRaw ? JSON.parse(historyRaw) : [];
       const streak = streakRaw ? Number.parseInt(streakRaw, 10) : 0;
       cb(history, isNaN(streak) ? 0 : streak);
     } catch (e) {
+      console.error("[Detained?] failed to load history:", e.message);
       cb([], 0);
     }
   }
@@ -871,21 +1026,28 @@
   // SECTION 9 — SMALL UI BUILDERS
   // ═══════════════════════════════════════════════════════════════════════════════
   function createInfoChip(labelText, valueText) {
-    const chip = document.createElement("span");
+    const chip = document.createElement("div");
     Object.assign(chip.style, {
-      display: "inline-flex", alignItems: "center", gap: "6px",
-      padding: "6px 10px", borderRadius: "999px", background: "#fff",
-      border: "1px solid #fed7aa", color: "#9a3412", fontWeight: "700", fontSize: "14px",
-      minWidth: "160px", justifyContent: "center", flexShrink: "0"
+      display: "inline-flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+      padding: "8px 16px", borderRadius: "14px",
+      background: "var(--psit-card-bg)", border: "1.5px solid var(--psit-border)",
+      color: "var(--psit-text)", fontWeight: "900", fontSize: "13px",
+      minWidth: "120px", flexShrink: "0", boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
+      transition: "transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)"
     });
-    const value = document.createElement("span");
-    value.textContent = valueText;
-    value.style.color = "#111827";
+    chip.onmouseenter = () => chip.style.transform = "scale(1.03)";
+    chip.onmouseleave = () => chip.style.transform = "scale(1)";
+
     if (labelText) {
-      const label = document.createElement("span");
+      const label = document.createElement("div");
       label.textContent = labelText;
+      label.style.fontSize = "10px"; label.style.opacity = "0.6"; label.style.textTransform = "uppercase";
       chip.appendChild(label);
     }
+    const value = document.createElement("div");
+    value.textContent = valueText;
+    value.style.color = "var(--psit-accent)";
+    value.style.fontSize = "15px";
     chip.appendChild(value);
     return chip;
   }
@@ -894,11 +1056,11 @@
     const chip = document.createElement("span");
     Object.assign(chip.style, {
       display: "inline-flex", alignItems: "center", gap: "4px",
-      padding: "6px 8px", borderRadius: "999px", fontWeight: "700", fontSize: "12px",
-      border: isPositive ? "1px solid #86efac" : "1px solid #fca5a5",
-      background: isPositive ? "#dcfce7" : "#fee2e2",
-      color: isPositive ? "#166534" : "#991b1b",
-      flexShrink: "0"
+      padding: "6px 12px", borderRadius: "999px", fontWeight: "900", fontSize: "12px",
+      border: `1.5px solid ${isPositive ? "#86efac" : "#fca5a5"}`,
+      background: isPositive ? "#f0fdf4" : "#fef2f2",
+      color: isPositive ? "#15803d" : "#b91c1c",
+      flexShrink: "0", boxShadow: "0 2px 6px rgba(0,0,0,0.06)"
     });
     chip.textContent = text;
     return chip;
@@ -963,13 +1125,27 @@
     const oldPopup = document.getElementById(POPUP_ID);
     if (oldPopup) oldPopup.remove();
 
-    const sig = document.createElement("div");
-    sig.innerHTML = `DET<span style="color:#f97316">AINED?</span> — $hubh`;
+    // Calendar state
+    let calYear = getTodayAcademicDay().getFullYear();
+    let calMonth = getTodayAcademicDay().getMonth();
+    let calFrom = null;   // Date object
+    let calTo   = null;   // Date object
+
+    const sig = document.createElement("button");
+    sig.type = "button";
+    sig.innerHTML = `DET<span style="color:var(--psit-accent)">AINED?</span> — <span style="font-size:9px;">$hubh</span>`;
     Object.assign(sig.style, {
-      marginTop: "12px", borderTop: "1px solid #fed7aa", paddingTop: "8px",
-      fontSize: "10px", fontWeight: "800", color: "#9ca3af",
-      textAlign: "right", letterSpacing: "0.5px"
+      marginTop: "12px", paddingTop: "8px",
+      fontSize: "11px", fontWeight: "900", color: "var(--psit-text)", opacity: "0.8",
+      textAlign: "center", letterSpacing: "1px", textTransform: "uppercase",
+      background: "none", border: "none", cursor: "pointer", width: "auto", padding: "4px 0",
+      transition: "opacity 0.2s", display: "inline-block"
     });
+    sig.addEventListener("click", () => {
+      window.open("https://whydetained.pages.dev", "_blank");
+    });
+    sig.addEventListener("mouseenter", () => sig.style.opacity = "1");
+    sig.addEventListener("mouseleave", () => sig.style.opacity = "0.8");
 
     const storedGoalPercent = getStoredGoalPercent();
     const storedLpd = getStoredLecturesPerDay();
@@ -981,27 +1157,67 @@
     const upDelta = ((attended + 1) / (totalLectures + 1)) * 100 - basePercent;
     const downDelta = (attended / (totalLectures + 1)) * 100 - basePercent;
 
+    updateThemeVariables(getStoredTheme());
+
     // ── Wrapper (inline bar) ──
     const wrapper = document.createElement("div");
     wrapper.id = INLINE_ID;
     Object.assign(wrapper.style, {
       display: "inline-flex", flexDirection: "row", flexWrap: "nowrap",
-      alignItems: "center", justifyContent: "center", gap: "8px",
-      marginLeft: "8px", marginTop: "0",
-      padding: "6px 10px", borderRadius: "12px",
-      background: "#fff7ed", border: "1px solid #fdba74",
+      alignItems: "center", justifyContent: "center", gap: "10px",
+      marginLeft: "10px", marginTop: "8px", marginBottom: "8px",
+      padding: "10px 18px", borderRadius: "20px",
+      background: "var(--psit-panel-bg)", border: "2px solid var(--psit-border)",
       verticalAlign: "top", whiteSpace: "nowrap", position: "relative",
-      width: "630px", flexShrink: "0", overflow: "visible"
+      width: "630px", flexShrink: "0", overflow: "visible",
+      boxShadow: "var(--psit-shadow)",
+      transition: "all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)"
     });
 
     const statusBadge = createStatusBadge(basePercent, storedGoalPercent);
+    Object.assign(statusBadge.style, { transform: "scale(1.1)", marginRight: "10px" });
+    attachHelp(statusBadge, "Your current attendance status relative to your goal.");
+
     const leaveChip = createInfoChip("", formatLeaveMessage(allowance));
+    attachHelp(leaveChip, "How many upcoming lectures/days you can skip without falling below your goal.");
+
     const upChip = createDeltaChip(`▲ +${upDelta.toFixed(2)}%`, true);
+    attachHelp(upChip, "Attendance % change if you attend the NEXT lecture.");
+
     const downChip = createDeltaChip(`▼ ${downDelta.toFixed(2)}%`, false);
+    attachHelp(downChip, "Attendance % change if you miss the NEXT lecture.");
 
     // Streak from ERP table directly
     const streak = getStreakFromTable();
     const streakBadge = createStreakBadge(streak);
+    if (streakBadge) {
+       streakBadge.style.fontSize = "13px";
+       attachHelp(streakBadge, "Current consecutive academic days attended.");
+    }
+
+    // ── Theme Switcher ──
+    const themeBtn = document.createElement("button");
+    themeBtn.type = "button";
+    themeBtn.innerHTML = "🎨";
+    themeBtn.setAttribute("aria-label", "Cycle through UI themes: Sunset Glow, Midnight Glass, Cherry Blossom, Cyber Emerald");
+    Object.assign(themeBtn.style, {
+      width: "32px", height: "32px", border: "2px solid var(--psit-border)",
+      borderRadius: "10px", background: "var(--psit-card-bg)", color: "var(--psit-text)",
+      fontWeight: "900", fontSize: "16px", cursor: "pointer",
+      display: "inline-flex", alignItems: "center", justifyContent: "center",
+      transition: "all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)",
+      boxShadow: "0 2px 5px rgba(0,0,0,0.1)"
+    });
+    themeBtn.onmousedown = () => themeBtn.style.transform = "scale(0.9)";
+    themeBtn.onmouseup = () => themeBtn.style.transform = "scale(1)";
+    themeBtn.onclick = (e) => {
+      e.stopPropagation();
+      const current = getStoredTheme();
+      const keys = Object.keys(THEMES);
+      const next = keys[(keys.indexOf(current) + 1) % keys.length];
+      updateThemeVariables(next);
+    };
+    attachHelp(themeBtn, "Click to cycle through different UI themes.");
 
     loadHistory((history, _streak) => {
       // Trigger toast on page load
@@ -1018,8 +1234,6 @@
           "warning"
         );
       }
-
-      // Draw graph once dropdown is opened for the first time
       graphNeedsRedraw = true;
     });
 
@@ -1027,12 +1241,18 @@
     const toggleBtn = document.createElement("button");
     toggleBtn.type = "button";
     toggleBtn.textContent = "▼";
+    toggleBtn.setAttribute("aria-label", "Toggle attendance dashboard");
     Object.assign(toggleBtn.style, {
-      width: "24px", height: "24px", border: "1px solid #fdba74",
-      borderRadius: "999px", background: "#fff", color: "#9a3412",
-      fontWeight: "800", fontSize: "12px", cursor: "pointer",
-      display: "inline-flex", alignItems: "center", justifyContent: "center"
+      width: "32px", height: "32px", border: "2px solid var(--psit-border)",
+      borderRadius: "10px", background: "var(--psit-card-bg)", color: "var(--psit-text)",
+      fontWeight: "900", fontSize: "16px", cursor: "pointer",
+      display: "inline-flex", alignItems: "center", justifyContent: "center",
+      transition: "all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
+      boxShadow: "0 2px 5px rgba(0,0,0,0.1)"
     });
+    toggleBtn.onmousedown = () => toggleBtn.style.transform = "scale(0.9)";
+    toggleBtn.onmouseup = () => toggleBtn.style.transform = "scale(1)";
+    attachHelp(toggleBtn, "Toggle the main dashboard features.");
 
     // ─────────────────────────────────────────────────────────────────────────────
     // DROPDOWN POPUP
@@ -1040,24 +1260,51 @@
     const popup = document.createElement("div");
     popup.id = POPUP_ID;
     Object.assign(popup.style, {
-      position: "absolute", top: "calc(100% + 8px)", left: "0",
-      width: "100%", padding: "10px", borderRadius: "12px",
-      border: "1px solid #fdba74", background: "#fff7ed", boxSizing: "border-box",
-      boxShadow: "0 8px 24px rgba(0,0,0,0.12)", display: "none", zIndex: "2147483647"
+      position: "absolute", top: "calc(100% + 15px)", left: "50%",
+      transform: "translateX(-50%)",
+      width: "630px", padding: "16px", borderRadius: "24px",
+      border: "2px solid var(--psit-border)", background: "var(--psit-panel-bg)", 
+      boxSizing: "border-box", boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+      display: "none", zIndex: "2147483647",
+      animation: "psitBentoPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)"
     });
+
+    const popupGrid = document.createElement("div");
+    Object.assign(popupGrid.style, {
+       display: "flex", flexDirection: "column", gap: "16px"
+    });
+    popup.appendChild(popupGrid);
+
+    if (!document.getElementById("psit-animations")) {
+      const style = document.createElement("style");
+      style.id = "psit-animations";
+      style.textContent = `
+        @keyframes psitBentoPop {
+          from { opacity: 0; transform: translateX(-50%) translateY(20px) scale(0.95); }
+          to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+        }
+      `;
+      document.head.appendChild(style);
+    }
 
     checkForUpdate(popup);
 
     function sectionBox(title) {
       const box = document.createElement("div");
       Object.assign(box.style, {
-        border: "1px solid #fed7aa", borderRadius: "10px",
-        padding: "8px", background: "#fff", marginBottom: "8px"
+        border: "1.5px solid var(--psit-border)", borderRadius: "18px",
+        padding: "16px", background: "var(--psit-card-bg)", 
+        boxShadow: "0 6px 15px rgba(0,0,0,0.03)", transition: "all 0.3s"
       });
       if (title) {
         const h = document.createElement("div");
         h.textContent = title;
-        Object.assign(h.style, { fontSize: "12px", fontWeight: "800", color: "#9a3412", marginBottom: "6px" });
+        Object.assign(h.style, { 
+          fontSize: "14px", fontWeight: "900", color: "var(--psit-text)", 
+          marginBottom: "12px", opacity: "0.9", textTransform: "uppercase", 
+          letterSpacing: "1px", borderBottom: "1.5px solid var(--psit-border)",
+          paddingBottom: "6px"
+        });
         box.appendChild(h);
       }
       return box;
@@ -1065,7 +1312,7 @@
 
     function outputDiv() {
       const d = document.createElement("div");
-      Object.assign(d.style, { fontSize: "13px", fontWeight: "700", color: "#7c2d12", marginTop: "6px" });
+      Object.assign(d.style, { fontSize: "13px", fontWeight: "800", color: "var(--psit-text)", marginTop: "6px" });
       return d;
     }
 
@@ -1088,8 +1335,9 @@
       return todayIso;
     }
 
-    // ── Section A: Scenario Simulator ──
+    // ── Row 2: Scenario Simulator ──
     const secA = sectionBox("Scenario Simulator");
+    popupGrid.appendChild(secA);
 
     const goalInput = createPopupNumberInput(storedGoalPercent, 1, 100);
     const daysInput = createPopupNumberInput(0, 0);
@@ -1099,158 +1347,156 @@
     const outRemaining = outputDiv();
     const outRecovery = outputDiv();
 
-    secA.appendChild(createPopupField("Goal %", goalInput));
-    secA.appendChild(createPopupField("Days to skip", daysInput));
-    secA.appendChild(createPopupField("lectures to skip", lecturesInput));
-    secA.appendChild(outPredicted);
-    secA.appendChild(outRemaining);
-    secA.appendChild(outRecovery);
+    const simGrid = document.createElement("div");
+    Object.assign(simGrid.style, { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" });
+    secA.appendChild(simGrid);
 
-    // ── Section B: Academic Planner ──
+    const simLeft = document.createElement("div");
+    simLeft.appendChild(createPopupField("Goal %", goalInput));
+    simLeft.appendChild(createPopupField("Days to skip", daysInput));
+    simLeft.appendChild(createPopupField("lectures to skip", lecturesInput));
+    simGrid.appendChild(simLeft);
+
+    attachHelp(goalInput, "Set your target attendance percentage here.");
+    attachHelp(daysInput, "Number of full academic days you plan to miss in the future.");
+    attachHelp(lecturesInput, "Extra individual lectures you plan to miss.");
+
+    const simRight = document.createElement("div");
+    simRight.appendChild(outPredicted);
+    simRight.appendChild(outRemaining);
+    simRight.appendChild(outRecovery);
+    simGrid.appendChild(simRight);
+
+    attachHelp(outPredicted, "Estimated attendance percentage after taking all planned absences.");
+    attachHelp(outRemaining, "Remaining buffer lectures/days after your planned absences.");
+    attachHelp(outRecovery, "Required recovery lectures to hit your goal.");
+
+    // ── Row 3: Academic Planner ──
     const secB = sectionBox("Academic Planner");
+    popupGrid.appendChild(secB);
+
+    const lastDayLabel = document.createElement("div");
+    lastDayLabel.textContent = "Last Academic Day";
+    lastDayLabel.style.fontSize = "11px"; lastDayLabel.style.fontWeight = "800"; lastDayLabel.style.marginBottom = "4px";
+    secB.appendChild(lastDayLabel);
 
     const lastDayInput = document.createElement("input");
     lastDayInput.type = "date";
     lastDayInput.min = getMinSelectableIso();
     lastDayInput.value = storedLastDay || todayIso;
     Object.assign(lastDayInput.style, {
-      width: "130px", padding: "6px 8px", borderRadius: "8px",
-      border: "1px solid #cbd5e1", background: "#fff", color: "#111827",
-      fontSize: "13px", fontWeight: "700"
+      width: "100%", padding: "10px", borderRadius: "10px", marginBottom: "12px",
+      border: "1.5px solid var(--psit-border)", background: "#fff", color: "#111827",
+      fontSize: "13px", fontWeight: "900", boxSizing: "border-box"
     });
+    secB.appendChild(lastDayInput);
+
+    const planBtns = document.createElement("div");
+    Object.assign(planBtns.style, { display: "flex", gap: "8px", marginBottom: "12px" });
+    secB.appendChild(planBtns);
 
     const satToggle = document.createElement("button");
-    satToggle.type = "button";
-    satToggle.textContent = "Saturdays ▾";
-    Object.assign(satToggle.style, {
-      padding: "6px 7px", borderRadius: "8px", border: "1px solid #fdba74",
-      background: "#fff", color: "#9a3412", fontSize: "11px",
-      fontWeight: "700", cursor: "pointer", height: "32px", minWidth: "80px", flexShrink: "0"
+    satToggle.textContent = "Saturdays";
+    const holToggle = document.createElement("button");
+    holToggle.textContent = "Holidays";
+    const modifyToggle = document.createElement("button");
+    modifyToggle.textContent = "Modify";
+
+    [satToggle, holToggle, modifyToggle].forEach(btn => {
+      Object.assign(btn.style, {
+        flex: "1", padding: "8px 0", borderRadius: "10px", border: "1.5px solid var(--psit-border)",
+        background: "var(--psit-card-bg)", color: "var(--psit-text)", fontSize: "11px",
+        fontWeight: "900", cursor: "pointer", transition: "transform 0.2s"
+      });
+      btn.onmousedown = () => btn.style.transform = "scale(0.95)";
+      btn.onmouseup = () => btn.style.transform = "scale(1)";
+      planBtns.appendChild(btn);
     });
+
+    attachHelp(lastDayInput, "The final date of the current academic session or semester.");
+    attachHelp(satToggle, "Manage open/closed Saturdays (to include them in class day counts).");
+    attachHelp(holToggle, "Manage holidays (H) and internal exclusions.");
+    attachHelp(modifyToggle, "Customize the number of lectures for specific date ranges (Modify Tool).");
 
     const satList = document.createElement("div");
     Object.assign(satList.style, {
-      display: "none", maxHeight: "100px", overflowY: "auto",
-      border: "1px solid #fed7aa", borderRadius: "8px",
-      padding: "6px", background: "#fff", marginTop: "4px"
-    });
-
-    // ── Holiday Exclusions ──
-    const holToggle = document.createElement("button");
-    holToggle.type = "button";
-    holToggle.textContent = "Holidays ▾";
-    Object.assign(holToggle.style, {
-      padding: "6px 7px", borderRadius: "8px", border: "1px solid #fdba74",
-      background: "#fff", color: "#9a3412", fontSize: "11px",
-      fontWeight: "700", cursor: "pointer", height: "32px", minWidth: "75px", flexShrink: "0"
+      display: "none", maxHeight: "150px", overflowY: "auto",
+      border: "1.5px solid var(--psit-border)", borderRadius: "10px",
+      padding: "10px", background: "#fff", marginTop: "4px"
     });
 
     const holSection = document.createElement("div");
-    Object.assign(holSection.style, {
-      display: "none", marginTop: "4px"
-    });
-
+    Object.assign(holSection.style, { display: "none", marginTop: "4px" });
     const holDateInput = document.createElement("input");
     holDateInput.type = "date";
     holDateInput.min = getMinSelectableIso();
     holDateInput.value = getMinSelectableIso();
     Object.assign(holDateInput.style, {
-      width: "120px", padding: "5px 7px", borderRadius: "8px",
-      border: "1px solid #cbd5e1", background: "#fff", color: "#111827",
-      fontSize: "12px", fontWeight: "700"
+      width: "140px", padding: "8px", borderRadius: "10px",
+      border: "1.5px solid #cbd5e1", background: "#fff", fontSize: "12px", fontWeight: "700"
     });
-
     const holAddBtn = document.createElement("button");
-    holAddBtn.type = "button";
     holAddBtn.textContent = "+ Add";
     Object.assign(holAddBtn.style, {
-      padding: "5px 8px", borderRadius: "8px", border: "1px solid #86efac",
-      background: "#dcfce7", color: "#166534", fontSize: "12px",
-      fontWeight: "700", cursor: "pointer", marginLeft: "4px"
+      padding: "8px 12px", borderRadius: "10px", border: "none",
+      background: "#16a34a", color: "#fff", fontSize: "12px", fontWeight: "900", cursor: "pointer"
     });
-
     const holList = document.createElement("div");
-    Object.assign(holList.style, {
-      maxHeight: "80px", overflowY: "auto", marginTop: "4px"
-    });
-
+    Object.assign(holList.style, { maxHeight: "100px", overflowY: "auto", marginTop: "8px" });
     const holRow = document.createElement("div");
-    Object.assign(holRow.style, { display: "flex", alignItems: "center", gap: "4px", marginTop: "4px" });
-    holRow.appendChild(holDateInput);
-    holRow.appendChild(holAddBtn);
-    holSection.appendChild(holRow);
-    holSection.appendChild(holList);
+    Object.assign(holRow.style, { display: "flex", gap: "8px" });
+    holRow.appendChild(holDateInput); holRow.appendChild(holAddBtn);
+    holSection.appendChild(holRow); holSection.appendChild(holList);
+
+    const modifySection = document.createElement("div");
+    Object.assign(modifySection.style, { display: "none", marginTop: "4px" });
+
+    secB.appendChild(satList);
+    secB.appendChild(holSection);
+    secB.appendChild(modifySection);
+
+    const bentoSummary = document.createElement("div");
+    Object.assign(bentoSummary.style, { marginTop: "12px", borderTop: "1.5px solid var(--psit-border)", paddingTop: "10px" });
+    secB.appendChild(bentoSummary);
 
     const outNoAbsent = outputDiv();
     const outLeaveTill = outputDiv();
     const outClassDays = outputDiv();
+    bentoSummary.appendChild(outClassDays);
+    bentoSummary.appendChild(outNoAbsent);
+    bentoSummary.appendChild(outLeaveTill);
 
-    const modifyToggle = document.createElement("button");
-    modifyToggle.type = "button";
-    modifyToggle.textContent = "Modify ▾";
-    Object.assign(modifyToggle.style, {
-      padding: "6px 7px", borderRadius: "8px", border: "1px solid #fdba74",
-      background: "#fff", color: "#9a3412", fontSize: "11px",
-      fontWeight: "700", cursor: "pointer", height: "32px", minWidth: "65px", flexShrink: "0"
-    });
-
-    const modifySection = document.createElement("div");
-    Object.assign(modifySection.style, {
-      display: "none", marginTop: "4px"
-    });
+    attachHelp(outClassDays, "Total scheduled class days and lectures remaining until the session ends.");
+    attachHelp(outNoAbsent, "Estimated final percentage if you have ZERO more absences from today onwards.");
+    attachHelp(outLeaveTill, "Total 'safe' lectures you can miss between now and the end of semester.");
 
     // ── Inline Calendar ──
-    let calYear = getTodayAcademicDay().getFullYear();
-    let calMonth = getTodayAcademicDay().getMonth();
-    let calFrom = null;   // Date object
-    let calTo   = null;   // Date object
-
     const calWrap = document.createElement("div");
     Object.assign(calWrap.style, {
-      background: "#fff", border: "1px solid #fdba74", borderRadius: "10px",
-      padding: "8px", marginBottom: "6px", userSelect: "none"
+      background: "#fff", border: "1.5px solid var(--psit-border)", borderRadius: "12px",
+      padding: "10px", marginBottom: "8px", userSelect: "none", boxShadow: "inset 0 2px 4px rgba(0,0,0,0.03)"
     });
-
-    // Navigation row: ‹  [Month1 Year]  [Month2 Year]  ›
+    modifySection.appendChild(calWrap);
+    
     const calNavRow = document.createElement("div");
-    Object.assign(calNavRow.style, {
-      display: "flex", alignItems: "center", justifyContent: "space-between",
-      marginBottom: "6px"
-    });
-    const calPrev = document.createElement("div");
-    calPrev.textContent = "‹";
-    Object.assign(calPrev.style, {
-      cursor: "pointer", fontWeight: "800", fontSize: "16px",
-      color: "#9a3412", padding: "0 6px", borderRadius: "4px", flexShrink: "0"
-    });
-    const calNext = document.createElement("div");
-    calNext.textContent = "›";
-    Object.assign(calNext.style, {
-      cursor: "pointer", fontWeight: "800", fontSize: "16px",
-      color: "#9a3412", padding: "0 6px", borderRadius: "4px", flexShrink: "0"
-    });
+    Object.assign(calNavRow.style, { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" });
+    const calPrev = document.createElement("div"); calPrev.textContent = "‹";
+    const calNext = document.createElement("div"); calNext.textContent = "›";
+    [calPrev, calNext].forEach(n => Object.assign(n.style, { cursor: "pointer", fontWeight: "800", fontSize: "16px", color: "var(--psit-accent)", padding: "0 6px" }));
+    
     const calTitlesRow = document.createElement("div");
-    Object.assign(calTitlesRow.style, {
-      display: "flex", flex: "1", justifyContent: "space-around"
-    });
+    Object.assign(calTitlesRow.style, { display: "flex", flex: "1", justifyContent: "space-around" });
     const calMonthYear1 = document.createElement("div");
-    Object.assign(calMonthYear1.style, {
-      fontWeight: "800", fontSize: "12px", color: "#7c2d12", textAlign: "center", flex: "1"
-    });
     const calMonthYear2 = document.createElement("div");
-    Object.assign(calMonthYear2.style, {
-      fontWeight: "800", fontSize: "12px", color: "#7c2d12", textAlign: "center", flex: "1"
-    });
-    calTitlesRow.appendChild(calMonthYear1);
-    calTitlesRow.appendChild(calMonthYear2);
-    calNavRow.appendChild(calPrev);
-    calNavRow.appendChild(calTitlesRow);
-    calNavRow.appendChild(calNext);
+    [calMonthYear1, calMonthYear2].forEach(m => Object.assign(m.style, { fontWeight: "800", fontSize: "12px", color: "var(--psit-text)", textAlign: "center", flex: "1" }));
+    calTitlesRow.appendChild(calMonthYear1); calTitlesRow.appendChild(calMonthYear2);
+    calNavRow.appendChild(calPrev); calNavRow.appendChild(calTitlesRow); calNavRow.appendChild(calNext);
+    calWrap.appendChild(calNavRow);
 
-    // Two month tables side by side
     const calTablesRow = document.createElement("div");
     Object.assign(calTablesRow.style, { display: "flex", gap: "6px" });
-
+    calWrap.appendChild(calTablesRow);
+    
     function buildCalTable() {
       const container = document.createElement("div");
       Object.assign(container.style, { flex: "1", minWidth: "0" });
@@ -1259,33 +1505,20 @@
       const thead = document.createElement("thead");
       const headRow = document.createElement("tr");
       ["Su","Mo","Tu","We","Th","Fr","Sa"].forEach(d => {
-        const th = document.createElement("th");
-        th.textContent = d;
-        Object.assign(th.style, {
-          textAlign: "center", padding: "3px 0", color: "#9a3412",
-          fontWeight: "700", fontSize: "10px"
-        });
+        const th = document.createElement("th"); th.textContent = d;
+        Object.assign(th.style, { textAlign: "center", padding: "3px 0", color: "var(--psit-accent)", fontWeight: "700", fontSize: "10px" });
         headRow.appendChild(th);
       });
-      thead.appendChild(headRow);
-      table.appendChild(thead);
-      const tbody = document.createElement("tbody");
-      table.appendChild(tbody);
+      thead.appendChild(headRow); table.appendChild(thead); table.appendChild(document.createElement("tbody"));
       container.appendChild(table);
-      return { container, tbody };
+      return { container, tbody: table.querySelector("tbody") };
     }
+    const calLeft = buildCalTable(); const calRight = buildCalTable();
+    calTablesRow.appendChild(calLeft.container); calTablesRow.appendChild(calRight.container);
 
-    const calLeft  = buildCalTable();
-    const calRight = buildCalTable();
-    calTablesRow.appendChild(calLeft.container);
-    calTablesRow.appendChild(calRight.container);
-
-    // Range label
     const calRangeLabel = document.createElement("div");
-    Object.assign(calRangeLabel.style, {
-      fontSize: "10px", color: "#9a3412", marginTop: "4px", textAlign: "center",
-      minHeight: "14px"
-    });
+    Object.assign(calRangeLabel.style, { fontSize: "11px", color: "var(--psit-accent)", marginTop: "8px", textAlign: "center", fontWeight: "900" });
+    modifySection.appendChild(calRangeLabel);
 
     function isoOf(d) {
       if (!d) return null;
@@ -1330,10 +1563,10 @@
           Object.assign(td.style, {
             textAlign: "center", padding: "4px 2px", cursor: "pointer",
             borderRadius: isFrom || isTo ? "50%" : "0",
-            background: isFrom || isTo ? "#9a3412" : inRange ? "#fed7aa" : "transparent",
-            color: isFrom || isTo ? "#fff" : isToday ? "#9a3412" : "#111827",
+            background: isFrom || isTo ? "var(--psit-accent)" : inRange ? "#fed7aa" : "transparent",
+            color: isFrom || isTo ? "#fff" : isToday ? "var(--psit-accent)" : "#111827",
             fontWeight: isFrom || isTo || isToday ? "800" : "400",
-            outline: isToday && !isFrom && !isTo ? "1px solid #9a3412" : "none",
+            outline: isToday && !isFrom && !isTo ? "1px solid var(--psit-accent)" : "none",
             outlineOffset: "-1px"
           });
 
@@ -1436,7 +1669,6 @@
     modRow2.appendChild(modCountInput);
     modRow2.appendChild(modAddBtn);
 
-    modifySection.appendChild(calWrap);
     modifySection.appendChild(modRow2);
     modifySection.appendChild(modList);
 
@@ -1464,16 +1696,56 @@
     
     const summaryBox = document.createElement("div");
     Object.assign(summaryBox.style, {
-      borderTop: "1px dashed #fed7aa", marginTop: "10px", paddingTop: "8px"
+      borderTop: "1px dashed var(--psit-border)", marginTop: "10px", paddingTop: "8px"
     });
     summaryBox.appendChild(outNoAbsent);
     summaryBox.appendChild(outLeaveTill);
     summaryBox.appendChild(outClassDays);
     secB.appendChild(summaryBox);
 
-    popup.appendChild(secA);
-    popup.appendChild(secB);
-    popup.appendChild(sig);
+    // ── View Containers ──
+    const mainView = document.createElement("div");
+    mainView.id = "psit-main-view";
+    const historyView = document.createElement("div");
+    historyView.id = "psit-history-view";
+    historyView.style.display = "none";
+
+    // Assemble main view
+    mainView.appendChild(secA);
+    mainView.appendChild(secB);
+    mainView.appendChild(sig);
+
+    popup.appendChild(mainView);
+    popup.appendChild(historyView);
+
+    // ── Gear Icon (Bottom Left) ──
+    const gearBtn = document.createElement("button");
+    gearBtn.type = "button";
+    gearBtn.innerHTML = "⚙️";
+    gearBtn.setAttribute("aria-label", "View and manage historical data: Saturdays, holidays, and attendance snapshots");
+    Object.assign(gearBtn.style, {
+      position: "absolute", bottom: "12px", left: "12px",
+      background: "var(--psit-glass)", border: "1px solid var(--psit-border)", 
+      borderRadius: "50%", width: "28px", height: "28px", cursor: "pointer",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontSize: "14px", color: "var(--psit-text)", transition: "all 0.2s",
+      zIndex: "100", boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+    });
+    attachHelp(gearBtn, "View and manage historical Saturdays, holidays, and snapshots.");
+    gearBtn.onmouseenter = () => gearBtn.style.opacity = "1";
+    gearBtn.onmouseleave = () => gearBtn.style.opacity = "0.6";
+    gearBtn.onclick = (e) => {
+      e.stopPropagation();
+      const isMain = mainView.style.display !== "none";
+      mainView.style.display = isMain ? "none" : "block";
+      historyView.style.display = isMain ? "block" : "none";
+      
+      // If we just hid the main view, it means we are showing history
+      if (mainView.style.display === "none") {
+        renderHistoryView(historyView, mainView);
+      }
+    };
+    popup.appendChild(gearBtn);
 
     // ─────────────────────────────────────────────────────────────────────────────
     // MODIFY (CUSTOM LECTURES) LIST RENDERING
@@ -1481,13 +1753,12 @@
     function renderModifyList() {
       modList.innerHTML = "";
       const customs = getStoredCustomLectures();
-      const minIso = getMinSelectableIso();
-      // Auto-remove past modifications from storage
-      let modChanged = false;
-      Object.keys(customs).forEach(iso => { if (iso < minIso) { delete customs[iso]; modChanged = true; } });
-      if (modChanged) setStoredCustomLectures(customs);
+      /* auto-purge removed to keep historical accuracy */
       const dates = Object.keys(customs).sort();
-      if (dates.length === 0) {
+      const minIso = getMinSelectableIso();
+      const visibleDates = dates.filter(iso => iso >= minIso);
+
+      if (visibleDates.length === 0) {
         const empty = document.createElement("div");
         empty.textContent = "No modifications.";
         Object.assign(empty.style, { fontSize: "11px", color: "#9ca3af" });
@@ -1508,7 +1779,7 @@
       };
       modList.appendChild(clearAll);
 
-      dates.forEach(iso => {
+      visibleDates.forEach(iso => {
         const item = document.createElement("div");
         Object.assign(item.style, {
           display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -1577,20 +1848,19 @@
     // ─────────────────────────────────────────────────────────────────────────────
     function renderHolidayList() {
       holList.innerHTML = "";
-      const minIso = getMinSelectableIso();
       const holidays = getStoredHolidays();
-      // Auto-remove any past holidays from storage
-      let changed = false;
-      [...holidays].forEach(iso => { if (iso < minIso) { holidays.delete(iso); changed = true; } });
-      if (changed) setStoredHolidays(holidays);
-      if (holidays.size === 0) {
+      /* auto-purge removed to keep historical accuracy */
+      const minIso = getMinSelectableIso();
+      const visibleHolidays = [...holidays].filter(iso => iso >= minIso).sort();
+
+      if (visibleHolidays.length === 0) {
         const empty = document.createElement("div");
         empty.textContent = "No holidays added.";
         Object.assign(empty.style, { fontSize: "11px", color: "#9ca3af" });
         holList.appendChild(empty);
         return;
       }
-      [...holidays].sort().forEach(iso => {
+      visibleHolidays.forEach(iso => {
         const item = document.createElement("div");
         Object.assign(item.style, {
           display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -1661,16 +1931,7 @@
       const minIso = getMinSelectableIso();
       const minDate = parseIsoDate(minIso);
 
-      // Auto-purge any past Saturdays from the stored set
-      const storedMap = getStoredOpenSaturdays();
-      const lastIsoKey = lastDayInput.value;
-      if (Array.isArray(storedMap[lastIsoKey])) {
-        const cleaned = storedMap[lastIsoKey].filter(iso => iso >= minIso);
-        if (cleaned.length !== storedMap[lastIsoKey].length) {
-          storedMap[lastIsoKey] = cleaned;
-          setStoredOpenSaturdays(storedMap);
-        }
-      }
+      // Auto-purge removed to keep historical accuracy for streak/graph
 
       if (!lastDayDate || lastDayDate < minDate) {
         const empty = document.createElement("div");
@@ -1734,12 +1995,181 @@
     });
 
     // ─────────────────────────────────────────────────────────────────────────────
+    // HISTORY VIEW RENDERING
+    // ─────────────────────────────────────────────────────────────────────────────
+    let editMode = false;
+
+    function renderHistoryView(container, mainContainer) {
+      container.innerHTML = "";
+      
+      const header = document.createElement("div");
+      Object.assign(header.style, {
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+        marginBottom: "12px", borderBottom: "1px solid var(--psit-border)", paddingBottom: "8px"
+      });
+      
+      const backBtn = document.createElement("button");
+      backBtn.textContent = "← Back";
+      Object.assign(backBtn.style, {
+        background: "none", border: "none", color: "var(--psit-text)", cursor: "pointer",
+        fontWeight: "900", fontSize: "12px"
+      });
+      backBtn.onclick = () => {
+        container.style.display = "none";
+        mainContainer.style.display = "block";
+      };
+
+      const editBtn = document.createElement("button");
+      editBtn.textContent = editMode ? "Done" : "Edit";
+      Object.assign(editBtn.style, {
+        background: editMode ? "#dcfce7" : "var(--psit-glass)",
+        border: `1px solid ${editMode ? "#86efac" : "var(--psit-border)"}`,
+        borderRadius: "6px", padding: "2px 8px", color: editMode ? "#166534" : "var(--psit-text)",
+        cursor: "pointer", fontWeight: "900", fontSize: "11px"
+      });
+      editBtn.onclick = () => { editMode = !editMode; renderHistoryView(container, mainContainer); };
+      
+      header.appendChild(backBtn);
+      const title = document.createElement("span");
+      title.textContent = "Memory History";
+      title.style.fontWeight = "900";
+      title.style.color = "var(--psit-text)";
+      header.appendChild(title);
+      header.appendChild(editBtn);
+      container.appendChild(header);
+
+      const scrollBox = document.createElement("div");
+      Object.assign(scrollBox.style, {
+        maxHeight: "350px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "10px"
+      });
+      container.appendChild(scrollBox);
+
+      function createHistorySection(name) {
+        const sec = document.createElement("div");
+        const h = document.createElement("div");
+        h.textContent = name;
+        Object.assign(h.style, { fontSize: "11px", fontWeight: "900", color: "var(--psit-text)", opacity: "0.6", textTransform: "uppercase", marginBottom: "4px" });
+        sec.appendChild(h);
+        const list = document.createElement("div");
+        sec.appendChild(list);
+        scrollBox.appendChild(sec);
+        return list;
+      }
+
+      function createItem(text, onRemove) {
+        const row = document.createElement("div");
+        Object.assign(row.style, {
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "4px 0", borderBottom: "1px solid var(--psit-border)", fontSize: "12px", color: "var(--psit-text)"
+        });
+        const txt = document.createElement("span");
+        txt.textContent = text;
+        row.appendChild(txt);
+        
+        if (editMode && onRemove) {
+          const del = document.createElement("span");
+          del.textContent = "🗑️";
+          Object.assign(del.style, { cursor: "pointer", marginLeft: "8px" });
+          del.onclick = () => { onRemove(); renderHistoryView(container, mainContainer); updateCalculations(false); };
+          row.appendChild(del);
+        }
+        return row;
+      }
+
+      // 1. Working Saturdays (Consolidated)
+      const satSection = createHistorySection("Working Saturdays");
+      const satMap = getStoredOpenSaturdays() || {};
+      const allSats = new Set();
+      Object.keys(satMap).forEach(k => {
+        if (Array.isArray(satMap[k])) {
+          satMap[k].forEach(d => allSats.add(d));
+        }
+      });
+      if (allSats.size === 0) {
+        satSection.textContent = "No data found.";
+        satSection.style.fontSize = "11px";
+        satSection.style.color = "#9ca3af";
+      }
+      [...allSats].sort().forEach(iso => {
+        satSection.appendChild(createItem(iso, () => {
+          Object.keys(satMap).forEach(k => {
+            if (Array.isArray(satMap[k])) {
+              satMap[k] = satMap[k].filter(d => d !== iso);
+            }
+          });
+          setStoredOpenSaturdays(satMap);
+        }));
+      });
+
+      // 2. Holidays
+      const holSection = createHistorySection("Holidays");
+      const holidays = getStoredHolidays();
+      if (!holidays || holidays.size === 0) {
+        holSection.textContent = "No data found.";
+        holSection.style.fontSize = "11px";
+        holSection.style.color = "#9ca3af";
+      } else {
+        [...holidays].sort().forEach(iso => {
+          holSection.appendChild(createItem(iso, () => {
+            holidays.delete(iso);
+            setStoredHolidays(holidays);
+          }));
+        });
+      }
+
+      // 3. Custom Lectures
+      const customSection = createHistorySection("Custom Lectures");
+      const customs = getStoredCustomLectures() || {};
+      const cKeys = Object.keys(customs).sort();
+      if (cKeys.length === 0) {
+        customSection.textContent = "No data found.";
+        customSection.style.fontSize = "11px";
+        customSection.style.color = "#9ca3af";
+      }
+      cKeys.forEach(iso => {
+        customSection.appendChild(createItem(`${iso}: ${customs[iso]} lec`, () => {
+          delete customs[iso];
+          setStoredCustomLectures(customs);
+        }));
+      });
+
+      // 4. Attendance Snapshots
+      const histSection = createHistorySection("Trend Snapshots (Last 30)");
+      let history = [];
+      try {
+        const raw = window.localStorage.getItem(getStoreKey(K_HISTORY));
+        history = raw ? JSON.parse(raw) : [];
+      } catch (e) { history = []; }
+      
+      if (!Array.isArray(history) || history.length === 0) {
+        histSection.textContent = "No data found.";
+        histSection.style.fontSize = "11px";
+        histSection.style.color = "#9ca3af";
+      } else {
+        history.slice().reverse().forEach((entry, idx) => {
+          const realIdx = history.length - 1 - idx;
+          histSection.appendChild(createItem(`${entry.date}: ${Number(entry.percent || 0).toFixed(2)}%`, () => {
+            const historyKey = getStoreKey(K_HISTORY);
+            const currentHist = JSON.parse(window.localStorage.getItem(historyKey) || "[]");
+            currentHist.splice(realIdx, 1);
+            window.localStorage.setItem(historyKey, JSON.stringify(currentHist));
+          }));
+        });
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
     // GRAPH STATE
     // ─────────────────────────────────────────────────────────────────────────────
     let graphHitPoints = [];  // { x, y, date, percent, isPredicted }
 
     function redrawGraph() {
       if (!bigGraphCanvas) return;
+      const ctx = bigGraphCanvas.getContext("2d");
+      if (!ctx) {
+        console.error("[Detained?] Failed to get canvas 2D context");
+        return;
+      }
 
       const lastDayDate = parseIsoDate(lastDayInput.value);
       const openSatSet = getOpenSatSet(String(lastDayInput.value));
@@ -1796,15 +2226,17 @@
         bigGraphBox.id = BIG_GRAPH_ID;
         Object.assign(bigGraphBox.style, {
           marginTop: "20px", marginBottom: "20px", padding: "20px",
-          background: "#fff7ed", border: "1px solid #fdba74", borderRadius: "16px",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.05)", clear: "both"
+          background: "var(--psit-glass)", border: "1px solid var(--psit-border)", 
+          borderRadius: "20px", backdropFilter: "blur(12px)",
+          boxShadow: "0 10px 40px rgba(0,0,0,0.08)", clear: "both",
+          transition: "background 0.3s"
         });
 
         const graphHeader = document.createElement("div");
         graphHeader.textContent = "Attendance Trend & Projections";
         Object.assign(graphHeader.style, {
-          fontSize: "18px", fontWeight: "800", color: "#9a3412", marginBottom: "12px",
-          display: "flex", alignItems: "center", gap: "8px"
+          fontSize: "18px", fontWeight: "900", color: "var(--psit-text)", marginBottom: "14px",
+          display: "flex", alignItems: "center", gap: "8px", letterSpacing: "-0.5px"
         });
         bigGraphBox.appendChild(graphHeader);
 
@@ -1899,12 +2331,15 @@
 
         tableWrapper.insertAdjacentElement("afterend", bigGraphBox);
 
-        // Listen for window resize to fix graph width
-        window.addEventListener("resize", () => {
+        // Listen for window resize to fix graph width (cleanup on popup close)
+        const resizeHandler = () => {
           if (document.getElementById(BIG_GRAPH_ID)) {
             redrawGraph();
           }
-        });
+        };
+        window.addEventListener("resize", resizeHandler);
+        // Store handler reference for cleanup
+        bigGraphBox._resizeHandler = resizeHandler;
       }
       bigGraphCanvas = bigGraphBox.querySelector("canvas");
     }
@@ -1939,12 +2374,18 @@
       const todayLpd = (customLpdMap && customLpdMap[toIsoDate(todayAcademic)] !== undefined)
         ? customLpdMap[toIsoDate(todayAcademic)] : lpd;
       const allTodayDone = completedToday >= todayLpd;
-      const classDayStart = allTodayDone
-        ? new Date(todayAcademic.getFullYear(), todayAcademic.getMonth(), todayAcademic.getDate() + 1)
-        : todayAcademic;
+
+      // Class counting should start from today if not done, else tomorrow
+      const classDayStart = allTodayDone ? new Date(todayAcademic.getTime() + 86400000) : todayAcademic;
       const classDays = countScheduledClassDays(classDayStart, lastDayDate, openSatSet, holidays);
+
+      // Future lectures starting from NOW (remaining today + all future days)
       let futureLec = calculateTotalFutureLectures(todayAcademic, lastDayDate, openSatSet, holidays, customLpdMap, lpd);
-      if (completedToday > 0) futureLec -= completedToday;
+      if (completedToday > 0) {
+        // Only subtract if today was actually counted as a class day
+        const isTodayClass = countScheduledClassDays(todayAcademic, todayAcademic, openSatSet, holidays) > 0;
+        if (isTodayClass) futureLec = Math.max(0, futureLec - completedToday);
+      }
 
       // Scenario Simulator
       const plannedMissed = days2skip * lpd + lec2skip;
@@ -2066,8 +2507,15 @@
     wrapper.appendChild(leaveChip);
     wrapper.appendChild(upChip);
     wrapper.appendChild(downChip);
+    wrapper.appendChild(themeBtn);
     wrapper.appendChild(toggleBtn);
     wrapper.appendChild(popup);
+
+    attachHelp(themeBtn, "Switch between Sunset Glow, Midnight Glass, Cherry Blossom, and Cyber Emerald themes.");
+    attachHelp(toggleBtn, "Open or close the Bento Dashboard (▲/▼).");
+
+    // Final signature inside popup
+    popup.appendChild(sig);
 
     host.appendChild(wrapper);
 
