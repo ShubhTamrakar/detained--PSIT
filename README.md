@@ -72,6 +72,26 @@ Stop doing attendance math in your head. This extension does it for you — live
       Toast notifications when you're close to your goal, below goal, or when 100% is literally impossible (💀).
     </td>
   </tr>
+  <tr>
+    <td width="50%">
+      <h3>🎨 Theme Switcher</h3>
+      4 beautiful themes — Sunset Glow, Midnight Glass, Cherry Blossom, Cyber Emerald. Click the palette icon to cycle through and customize your vibe.
+    </td>
+    <td width="50%">
+      <h3>📚 Interactive Help Tooltips</h3>
+      Hover over any UI element for instant contextual help. Smart 0.5s idle trigger ensures help doesn't interfere while interacting.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <h3>🔔 Auto Update Checker</h3>
+      Automatically checks for new versions. Banner notification appears when an update is available — stay current effortlessly.
+    </td>
+    <td width="50%">
+      <h3>⚙️ History & Data Manager</h3>
+      Gear icon access to view and manage all historical data — saved Saturdays, holidays, attendance snapshots, and more.
+    </td>
+  </tr>
 </table>
 
 ---
@@ -115,7 +135,7 @@ Stop doing attendance math in your head. This extension does it for you — live
 
 <div align="center">
 
-Made with 🚩 by **$hubhT'24-'28**
+Made with 🚩 by **$hubh'24-'28**
 
 [🌐 Website](https://whydetained.pages.dev) • [⭐ Star on GitHub](../../stargazers) • [🐛 Report a Bug](../../issues)
 

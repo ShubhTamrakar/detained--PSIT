@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Detained?",
-  "version": "2.0.0",
-  "description": "Am I getting detained? Find out instantly — live attendance %, leave calculator, scenario simulator, trend graph & smart alerts on PSIT ERP.",
+  "version": "2.0.1",
+  "description": "Am I getting detained? Smart attendance tracker for PSIT ERP — live %, leave calculator, simulator, trend graph & smart alerts.",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
@@ -16,6 +16,10 @@
 
   "background": {
     "service_worker": "background.js"
+  },
+
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; style-src 'self' 'unsafe-inline';"
   },
 
   "content_scripts": [
