@@ -20,6 +20,7 @@
   const K_STREAK = "psit_streak";
   const K_CUSTOM_LPD = "psit_custom_lectures"; // Object: { "ISO-DATE": NumberOfLectures }
   const K_LAST_TOTAL = "psit_last_total_lectures"; // last seen totalLectures — for semester reset detection
+  const K_RECTIFICATION = "psit_assumed_rectifications"; // numeric
 
   const K_UPDATE_DISMISSED = "detained_update_dismissed_v";
   const K_THEME = "psit_active_theme";
@@ -386,6 +387,24 @@
     } catch { }
   }
 
+  function getStoredRectifications() {
+    try {
+      const raw = window.localStorage.getItem(getStoreKey(K_RECTIFICATION));
+      if (!raw) return 0;
+      const n = Number.parseInt(raw, 10);
+      return Number.isNaN(n) || n < 0 ? 0 : n;
+    } catch { return 0; }
+  }
+
+  function setStoredRectifications(value) {
+    try {
+      const n = Number.parseInt(String(value), 10);
+      if (!Number.isNaN(n) && n >= 0) {
+        window.localStorage.setItem(getStoreKey(K_RECTIFICATION), String(n));
+      }
+    } catch { }
+  }
+
   function getStoredLastAcademicDay() {
     try { return window.localStorage.getItem(getStoreKey(K_LAST_DAY)) || ""; } catch { return ""; }
   }
@@ -551,6 +570,10 @@
       1015   // 8th: 16:55
     ];
 
+    // If it's before 09:25 AM (565 mins), the academic day is yesterday,
+    // and all classes for yesterday are already done.
+    if (totalMinutes < 565) return 8;
+
     let completed = 0;
     for (let i = 0; i < lectureEndTimes.length; i++) {
       if (totalMinutes >= lectureEndTimes[i]) {
@@ -634,7 +657,8 @@
   // ═══════════════════════════════════════════════════════════════════════════════
   function getCurrentAttended(totalLectures, totalAbsent) {
     const oaAttendance = findSummaryValue("O.A. Attendance");
-    const effectiveAbsent = Math.max(0, totalAbsent - (oaAttendance || 0));
+    const rectifications = getStoredRectifications();
+    const effectiveAbsent = Math.max(0, totalAbsent - (oaAttendance || 0) - rectifications);
     return Math.max(0, totalLectures - effectiveAbsent);
   }
 
@@ -791,7 +815,7 @@
           if ((isWeekday || isOpenSat) && !hols.has(iso)) {
             let lec = (customs[iso] !== undefined) ? customs[iso] : lecturesPerDay;
             // For today, only count remaining (not-yet-completed) lectures
-            if (iso === toIsoDate(today)) lec = Math.max(0, lec - completedToday);
+            if (iso === toIsoDate(today)) lec = Math.max(0, lec - Math.min(completedToday, lec));
             if (lec > 0) {
               accTotal += lec;
               const absent = Math.min(lec, missedLeft);
@@ -1342,6 +1366,7 @@
     const goalInput = createPopupNumberInput(storedGoalPercent, 1, 100);
     const daysInput = createPopupNumberInput(0, 0);
     const lecturesInput = createPopupNumberInput(0, 0);
+    const rectificationsInput = createPopupNumberInput(getStoredRectifications(), 0);
 
     const outPredicted = outputDiv();
     const outRemaining = outputDiv();
@@ -1355,11 +1380,13 @@
     simLeft.appendChild(createPopupField("Goal %", goalInput));
     simLeft.appendChild(createPopupField("Days to skip", daysInput));
     simLeft.appendChild(createPopupField("lectures to skip", lecturesInput));
+    simLeft.appendChild(createPopupField("Assumed Rectifi.", rectificationsInput));
     simGrid.appendChild(simLeft);
 
     attachHelp(goalInput, "Set your target attendance percentage here.");
     attachHelp(daysInput, "Number of full academic days you plan to miss in the future.");
     attachHelp(lecturesInput, "Extra individual lectures you plan to miss.");
+    attachHelp(rectificationsInput, "Assumed number of absences that will be rectified to present.");
 
     const simRight = document.createElement("div");
     simRight.appendChild(outPredicted);
@@ -1745,7 +1772,25 @@
         renderHistoryView(historyView, mainView);
       }
     };
+
+    // Today's academic date + completed lectures (shown near the gear icon)
+    const todayInfo = document.createElement("div");
+    Object.assign(todayInfo.style, {
+      position: "absolute",
+      bottom: "16px",
+      left: "48px",
+      fontSize: "11px",
+      fontWeight: "900",
+      opacity: "0.6",
+      textTransform: "uppercase",
+      letterSpacing: "0.6px",
+      color: "var(--psit-text)",
+      pointerEvents: "none",
+      userSelect: "none",
+      zIndex: "100"
+    });
     popup.appendChild(gearBtn);
+    popup.appendChild(todayInfo);
 
     // ─────────────────────────────────────────────────────────────────────────────
     // MODIFY (CUSTOM LECTURES) LIST RENDERING
@@ -2175,7 +2220,11 @@
       const openSatSet = getOpenSatSet(String(lastDayInput.value));
       const holidays = getStoredHolidays();
       const customLpdMap = getStoredCustomLectures();
-      const lpd = storedLpd;
+      const lpd = getStoredLecturesPerDay();
+      const rectVal = parseNonNegativeInt(rectificationsInput.value, 0);
+      const oaAttendance = findSummaryValue("O.A. Attendance");
+      const effectiveAbsent = Math.max(0, totalAbsent - (oaAttendance || 0) - rectVal);
+      const attendedNow = Math.max(0, totalLectures - effectiveAbsent);
 
       // Ensure canvas pixels match its display size
       const tableWrapper = document.getElementById("data-table-buttons_wrapper");
@@ -2186,16 +2235,16 @@
       }
 
       // Use parsed history from table as primary source, fallback to localStorage
-      let history = parseAttendanceTable(totalLectures, attended);
+      let history = parseAttendanceTable(totalLectures, attendedNow);
       if (history.length === 0) {
-        const storedHistoryRaw = window.localStorage.getItem(K_HISTORY);
+        const storedHistoryRaw = window.localStorage.getItem(getStoreKey(K_HISTORY));
         history = storedHistoryRaw ? JSON.parse(storedHistoryRaw) : [];
       }
 
       const pts = drawAttendanceGraph(
         bigGraphCanvas, history,
         normalizeGoalPercent(String(goalInput.value || storedGoalPercent)),
-        attended, totalLectures,
+        attendedNow, totalLectures,
         lastDayDate, lpd, openSatSet, holidays, customLpdMap,
         parseNonNegativeInt(daysInput.value, 0) * lpd + parseNonNegativeInt(lecturesInput.value, 0)
       );
@@ -2354,7 +2403,7 @@
       const goal = rawGoal ? normalizeGoalPercent(rawGoal) : storedGoalPercent;
       if (commit) { goalInput.value = String(goal); setStoredGoalPercent(goal); }
 
-      const lpd = storedLpd;
+      const lpd = getStoredLecturesPerDay();
 
       const lastIso = String(lastDayInput.value || "").trim();
       const lastDayDate = parseIsoDate(lastIso);
@@ -2362,10 +2411,19 @@
 
       const days2skip = parseNonNegativeInt(daysInput.value, 0);
       const lec2skip = parseNonNegativeInt(lecturesInput.value, 0);
+      const rectVal = parseNonNegativeInt(rectificationsInput.value, 0);
       daysInput.value = String(days2skip);
       lecturesInput.value = String(lec2skip);
+      rectificationsInput.value = String(rectVal);
+      if (commit) setStoredRectifications(rectVal);
 
       // Academic Planner data (computed early — used by both simulator and planner)
+      // Use the in-progress "Assumed Rectifi." value so outputs update live while typing.
+      const oaAttendance = findSummaryValue("O.A. Attendance");
+      const effectiveAbsent = Math.max(0, totalAbsent - (oaAttendance || 0) - rectVal);
+      const currentAttended = Math.max(0, totalLectures - effectiveAbsent);
+      const currentPct = (currentAttended / totalLectures) * 100;
+      
       const openSatSet = getOpenSatSet(lastIso);
       const holidays = getStoredHolidays();
       const customLpdMap = getStoredCustomLectures();
@@ -2374,6 +2432,13 @@
       const todayLpd = (customLpdMap && customLpdMap[toIsoDate(todayAcademic)] !== undefined)
         ? customLpdMap[toIsoDate(todayAcademic)] : lpd;
       const allTodayDone = completedToday >= todayLpd;
+
+      const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      const todayDay = todayAcademic.getDate();
+      const todayMon = months[todayAcademic.getMonth()] || "";
+      const safeTodayLpd = Math.max(0, Number(todayLpd) || 0);
+      const safeCompleted = Math.max(0, Math.min(Number(completedToday) || 0, safeTodayLpd || 0));
+      todayInfo.textContent = `${todayDay} ${todayMon} • ${safeCompleted}/${safeTodayLpd} Lectures`;
 
       // Class counting should start from today if not done, else tomorrow
       const classDayStart = allTodayDone ? new Date(todayAcademic.getTime() + 86400000) : todayAcademic;
@@ -2384,56 +2449,87 @@
       if (completedToday > 0) {
         // Only subtract if today was actually counted as a class day
         const isTodayClass = countScheduledClassDays(todayAcademic, todayAcademic, openSatSet, holidays) > 0;
-        if (isTodayClass) futureLec = Math.max(0, futureLec - completedToday);
+        if (isTodayClass) futureLec = Math.max(0, futureLec - Math.min(completedToday, todayLpd));
       }
 
       // Scenario Simulator
-      const plannedMissed = days2skip * lpd + lec2skip;
-      const effectiveMissed = Math.min(plannedMissed, futureLec);
-      const predictedPct = (attended / (totalLectures + plannedMissed)) * 100;
-      const maxAtGoal = getLeaveAllowance(totalLectures, totalAbsent, goal, lpd);
+      const plannedMissedRaw = days2skip * lpd + lec2skip;
+      const plannedMissed = Math.min(plannedMissedRaw, futureLec); // can't miss more than what's left
+      const plannedMissedCapped = plannedMissed !== plannedMissedRaw;
+      const effectiveMissed = plannedMissed;
+      const predictedPctForm = (currentAttended / (totalLectures + plannedMissed)) * 100;
+      const maxAtGoal = (() => {
+        const threshold = normalizeGoalPercent(goal);
+        const maxMissableLectures = Math.max(0, Math.floor((currentAttended * 100) / threshold - totalLectures));
+        return {
+          maxMissableLectures,
+          days: Math.floor(maxMissableLectures / lpd),
+          lectures: maxMissableLectures % lpd
+        };
+      })();
       const goalAllowance = allowanceFromLectureCount(maxAtGoal.maxMissableLectures, lpd);
       const remLec = Math.max(0, maxAtGoal.maxMissableLectures - plannedMissed);
       const remAllowance = allowanceFromLectureCount(remLec, lpd);
 
       const leaveValueSpan = leaveChip.querySelector("span") || leaveChip;
       leaveValueSpan.textContent = formatLeaveMessage(goalAllowance);
-      outPredicted.textContent = `Percentage%: ${predictedPct.toFixed(2)}%`;
-      outRemaining.textContent = `Remaining: ${formatLeaveMessage(remAllowance)} (goal ${goal}%)`;
+      outPredicted.textContent = plannedMissedCapped
+        ? `Percentage% (capped): ${predictedPctForm.toFixed(2)}%`
+        : `Percentage%: ${predictedPctForm.toFixed(2)}%`;
+      outRemaining.textContent = plannedMissedCapped
+        ? `Remaining (capped): ${formatLeaveMessage(remAllowance)} (goal ${goal}%)`
+        : `Remaining: ${formatLeaveMessage(remAllowance)} (goal ${goal}%)`;
 
       // Update inline status badge
-      const newStatus = getStatusInfo(basePercent, goal);
+      const newStatus = getStatusInfo(currentPct, goal);
       statusBadge.textContent = `${newStatus.emoji} ${newStatus.label}`;
       statusBadge.style.color = newStatus.color;
       statusBadge.style.background = newStatus.bg;
       statusBadge.style.border = `1px solid ${newStatus.border}`;
 
+      // Update up/down chips
+      const newUpDelta = ((currentAttended + 1) / (totalLectures + 1)) * 100 - currentPct;
+      const newDownDelta = (currentAttended / (totalLectures + 1)) * 100 - currentPct;
+      upChip.textContent = `▲ +${newUpDelta.toFixed(2)}%`;
+      downChip.textContent = `▼ ${newDownDelta.toFixed(2)}%`;
+
       // Recovery mode
-      const recovery = getRecoveryLectures(totalLectures, totalAbsent, goal);
+      const recovery = (() => {
+        const scenarioTotal = totalLectures + plannedMissed;
+        const scenarioPct = scenarioTotal > 0 ? (currentAttended / scenarioTotal) * 100 : 0;
+        if (scenarioPct >= goal) return null;
+        const g = normalizeGoalPercent(goal) / 100;
+        if (g >= 1) return Infinity;
+        return Math.max(0, Math.ceil((g * scenarioTotal - currentAttended) / (1 - g)));
+      })();
       if (recovery === null) {
-        outRecovery.textContent = "✅ Above goal — no recovery needed.";
+        outRecovery.textContent = plannedMissed > 0
+          ? "✅ Above goal (after skips) — no recovery needed."
+          : "✅ Above goal — no recovery needed.";
         outRecovery.style.color = "#16a34a";
       } else if (!isFinite(recovery)) {
         outRecovery.textContent = "💀 100% is impossible";
         outRecovery.style.color = "#7c3aed";
       } else {
         const recDays = Math.ceil(recovery / lpd);
-        outRecovery.textContent = `⚠️ Recover: attend next ${recovery} lecture${recovery === 1 ? "" : "s"} (~${recDays}d)`;
+        outRecovery.textContent = plannedMissed > 0
+          ? `⚠️ Recover (after skips): attend next ${recovery} lecture${recovery === 1 ? "" : "s"} (~${recDays}d)`
+          : `⚠️ Recover: attend next ${recovery} lecture${recovery === 1 ? "" : "s"} (~${recDays}d)`;
         outRecovery.style.color = "#dc2626";
       }
 
       // Academic Planner
-      const noAbsentPct = ((attended + futureLec) / (totalLectures + futureLec)) * 100;
+      const noAbsentPct = ((currentAttended + futureLec) / (totalLectures + futureLec)) * 100;
       const maxLeaveAbs = Math.min(
         futureLec,
-        Math.max(0, Math.floor(attended + futureLec - (goal / 100) * (totalLectures + futureLec)))
+        Math.max(0, Math.floor(currentAttended + futureLec - (goal / 100) * (totalLectures + futureLec)))
       );
       const leaveAllowTill = allowanceFromLectureCount(maxLeaveAbs, lpd);
 
       if (plannedMissed === 0) {
         outNoAbsent.textContent = `Percentage%(No more absences): ${noAbsentPct.toFixed(2)}%`;
       } else {
-        const plannerAbsentPct = ((attended + futureLec - effectiveMissed) / (totalLectures + futureLec)) * 100;
+        const plannerAbsentPct = ((currentAttended + futureLec - effectiveMissed) / (totalLectures + futureLec)) * 100;
         const absentDesc = days2skip > 0 && lec2skip > 0
           ? `${days2skip}d + ${lec2skip} lec absent`
           : days2skip > 0 ? `${days2skip} day${days2skip > 1 ? "s" : ""} absent`
@@ -2471,7 +2567,7 @@
       graphNeedsRedraw = true;
       updateCalculations(true);
     });
-    [daysInput, lecturesInput].forEach(inp => {
+    [daysInput, lecturesInput, rectificationsInput].forEach(inp => {
       inp.addEventListener("input", () => { graphNeedsRedraw = true; updateCalculations(false); });
       inp.addEventListener("change", () => { graphNeedsRedraw = true; updateCalculations(true); });
       inp.addEventListener("blur", () => { graphNeedsRedraw = true; updateCalculations(true); });

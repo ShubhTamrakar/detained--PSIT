@@ -7,7 +7,7 @@
 **The ultimate vibe check for your PSIT attendance.**
 
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/Version-2.0.0-purple.svg)]()
+[![Version](https://img.shields.io/badge/Version-2.0.2-purple.svg)]()
 [![Platform](https://img.shields.io/badge/Platform-Chrome%20%7C%20Edge%20%7C%20Brave-orange.svg)]()
 
 ---
@@ -17,7 +17,7 @@ Stop doing attendance math in your head. This extension does it for you — live
 
 </div>
 
-## 🚀 What's New in v2.0
+## 🚀 What's New in v2.0.2
 
 - 📈 **Attendance Trend Graph** — per-day history + predicted projection line with hover tooltips
 - 🗓️ **Dual-Month Calendar** — smart date picker for the Academic Planner (past dates disabled)
@@ -26,6 +26,8 @@ Stop doing attendance math in your head. This extension does it for you — live
 - 💀 **Impossible goal detection** — 100% goal with existing absences shows a 💀 warning
 - 🏖️ **Holidays & open Saturdays** — fully respected by graph and planner
 - ⚡ **Real-time updates** — all chips, badges, and graph update instantly on goal/input changes
+- 📍 **Today's label** — academic date + completed lectures shown near the gear icon
+- ⚠️ **Scenario recovery** — recovery reflects planned skips and live assumed rectifications
 
 ---
 

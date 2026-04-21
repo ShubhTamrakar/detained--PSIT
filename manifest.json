@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Detained?",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Am I getting detained? Smart attendance tracker for PSIT ERP — live %, leave calculator, simulator, trend graph & smart alerts.",
   "icons": {
     "16": "icons/icon16.png",
